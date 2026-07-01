@@ -1,0 +1,1224 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Бриф на разработку сайта</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #F6F3EE;
+    --panel: #FFFFFF;
+    --ink: #23281F;
+    --ink-soft: #6C7263;
+    --line: #E2DED3;
+    --accent: #1F4B3F;
+    --accent-soft: #DCE8DF;
+    --blush: #E4B9AA;
+    --blush-soft: #F3E2DB;
+    --error: #B34632;
+    --radius: 14px;
+    --shadow: 0 1px 2px rgba(35,40,31,0.04), 0 8px 24px rgba(35,40,31,0.06);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'Manrope', sans-serif;
+    -webkit-font-smoothing:antialiased;
+    line-height:1.5;
+  }
+  .wrap{
+    max-width:720px;
+    margin:0 auto;
+    padding:32px 20px 80px;
+  }
+  .brandline{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-bottom:28px;
+    color:var(--ink-soft);
+    font-size:13px;
+    letter-spacing:.04em;
+    text-transform:uppercase;
+  }
+  .brandline .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);}
+  h1{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    font-size:clamp(28px,5vw,38px);
+    line-height:1.12;
+    margin:0 0 10px;
+    letter-spacing:-0.01em;
+  }
+  .sub{
+    color:var(--ink-soft);
+    font-size:15.5px;
+    max-width:52ch;
+    margin:0 0 32px;
+  }
+
+  /* progress */
+  .progress-shell{
+    display:flex; align-items:center; gap:10px;
+    margin-bottom:34px;
+  }
+  .progress-track{
+    flex:1; height:3px; background:var(--line); border-radius:3px; overflow:hidden;
+  }
+  .progress-fill{
+    height:100%; background:var(--accent); width:0%;
+    transition:width .35s ease;
+  }
+  .progress-label{
+    font-size:12.5px; color:var(--ink-soft); white-space:nowrap; letter-spacing:.03em;
+  }
+
+  .card{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    padding:32px 28px;
+  }
+  .step{display:none;}
+  .step.active{display:block; animation:rise .3s ease both;}
+  @keyframes rise{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
+
+  .eyebrow{
+    font-size:12px; letter-spacing:.09em; text-transform:uppercase;
+    color:var(--accent); font-weight:700; margin-bottom:6px;
+  }
+  .step h2{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    font-size:22px;
+    margin:0 0 22px;
+  }
+
+  .field{margin-bottom:22px;}
+  .field:last-child{margin-bottom:0;}
+  label.q{
+    display:block; font-weight:600; font-size:14.5px; margin-bottom:8px;
+  }
+  label.q .req{color:var(--error); margin-left:2px;}
+  .hint{
+    font-size:13px; color:var(--ink-soft); margin:-4px 0 10px;
+  }
+  input[type=text], input[type=tel], textarea{
+    width:100%;
+    font-family:inherit;
+    font-size:15px;
+    padding:12px 14px;
+    border:1px solid var(--line);
+    border-radius:10px;
+    background:#FCFBF9;
+    color:var(--ink);
+    resize:vertical;
+  }
+  textarea{min-height:88px;}
+  input:focus, textarea:focus{
+    outline:none;
+    border-color:var(--accent);
+    box-shadow:0 0 0 3px var(--accent-soft);
+  }
+
+  .radio-group, .check-group{display:flex; flex-direction:column; gap:8px;}
+  .opt{
+    display:flex; align-items:flex-start; gap:10px;
+    padding:12px 14px;
+    border:1px solid var(--line);
+    border-radius:10px;
+    cursor:pointer;
+    background:#FCFBF9;
+    transition:border-color .15s ease, background .15s ease;
+  }
+  .opt:hover{border-color:var(--accent);}
+  .opt input{margin-top:3px; accent-color:var(--accent); flex-shrink:0;}
+  .opt.checked{border-color:var(--accent); background:var(--accent-soft);}
+  .opt .opt-text{font-size:14.5px;}
+  .opt .opt-text b{display:block; font-size:14.5px; margin-bottom:2px;}
+  .opt .opt-price{
+    display:block; color:var(--accent); font-weight:700; font-size:13px; margin-top:3px;
+  }
+  .opt .opt-desc{color:var(--ink-soft); font-size:13px; margin-top:3px; line-height:1.45;}
+
+  .conditional{
+    margin-top:10px; padding-left:2px; display:none;
+  }
+  .conditional.show{display:block;}
+
+  .nav-row{
+    display:flex; justify-content:space-between; align-items:center;
+    margin-top:28px;
+  }
+  button{
+    font-family:inherit; font-size:14.5px; font-weight:700;
+    border-radius:10px; border:1px solid transparent;
+    padding:13px 22px; cursor:pointer;
+    transition:transform .12s ease, opacity .12s ease;
+  }
+  button:active{transform:scale(0.98);}
+  .btn-primary{
+    background:var(--accent); color:#fff;
+  }
+  .btn-primary:hover{opacity:.92;}
+  .btn-ghost{
+    background:transparent; color:var(--ink-soft); border-color:var(--line);
+  }
+  .btn-ghost:hover{border-color:var(--ink-soft); color:var(--ink);}
+  .btn-ghost:disabled{opacity:0; pointer-events:none;}
+
+  .section-num{
+    font-family:'Fraunces', serif; font-size:13px; color:var(--ink-soft);
+  }
+
+  /* success screen */
+  .success{
+    text-align:center; padding:20px 10px;
+  }
+  .success .mark{
+    width:56px; height:56px; border-radius:50%;
+    background:var(--accent-soft); color:var(--accent);
+    display:flex; align-items:center; justify-content:center;
+    margin:0 auto 18px; font-size:26px;
+  }
+  .success h2{font-family:'Fraunces',serif; font-size:24px; margin:0 0 10px;}
+  .success p{color:var(--ink-soft); font-size:15px; max-width:44ch; margin:0 auto;}
+
+  .footer-note{
+    text-align:center; margin-top:22px; font-size:12px; color:var(--ink-soft); opacity:.6;
+  }
+  .admin-link{
+    background:none; border:none; color:var(--ink-soft); text-decoration:underline;
+    cursor:pointer; font-size:12px; padding:0;
+  }
+
+  /* admin */
+  #admin-panel{display:none;}
+  #admin-panel.show{display:block;}
+  .resp-card{
+    background:var(--panel); border:1px solid var(--line); border-radius:12px;
+    padding:20px 22px; margin-bottom:16px;
+  }
+  .resp-card h3{font-family:'Fraunces',serif; margin:0 0 4px; font-size:18px;}
+  .resp-meta{font-size:12.5px; color:var(--ink-soft); margin-bottom:14px;}
+  .resp-card dl{margin:0;}
+  .resp-card dt{font-weight:700; font-size:13px; margin-top:12px;}
+  .resp-card dd{margin:2px 0 0; font-size:14px; color:var(--ink); white-space:pre-wrap;}
+  .resp-card dd.empty{color:var(--ink-soft); font-style:italic;}
+  .features-list{list-style:none; padding:0; margin:2px 0 0;}
+  .features-list li{font-size:14px; padding:3px 0;}
+  .empty-state{color:var(--ink-soft); text-align:center; padding:40px 0;}
+
+
+  /* BRIEF_ADMIN_V2 */
+  .admin-grid{
+    display:grid;
+    gap:16px;
+    margin:18px 0 22px;
+  }
+  .admin-card{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    padding:22px;
+  }
+  .admin-card h2{
+    font-family:'Fraunces', serif;
+    font-size:20px;
+    margin:0 0 12px;
+  }
+  .admin-card p{
+    color:var(--ink-soft);
+    font-size:14px;
+    margin:0 0 14px;
+  }
+  .admin-field{
+    margin-bottom:14px;
+  }
+  .admin-field label{
+    display:block;
+    font-weight:700;
+    font-size:13px;
+    margin-bottom:6px;
+  }
+  .admin-field input,
+  .admin-field textarea{
+    width:100%;
+    font-family:inherit;
+    font-size:14px;
+    padding:11px 12px;
+    border:1px solid var(--line);
+    border-radius:10px;
+    background:#FCFBF9;
+    color:var(--ink);
+  }
+  .admin-field textarea{
+    min-height:96px;
+  }
+  .admin-actions{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    align-items:center;
+  }
+  .admin-status{
+    min-height:20px;
+    color:var(--accent);
+    font-weight:700;
+    font-size:13px;
+    margin-top:12px;
+  }
+  .admin-muted{
+    color:var(--ink-soft);
+    font-size:12.5px;
+  }
+  .editing [contenteditable="true"]{
+    outline:2px dashed rgba(31,75,63,.45);
+    outline-offset:4px;
+    border-radius:8px;
+    cursor:text;
+  }
+  .submit-error{
+    margin-top:14px;
+    color:var(--error);
+    font-size:14px;
+  }
+  .admin-delete-field{
+    display:none;
+    margin:8px 0 0;
+    padding:8px 10px;
+    border-color:var(--line);
+    background:var(--blush-soft);
+    color:var(--error);
+    font-size:12px;
+  }
+  #admin-panel.show ~ * .admin-delete-field,
+  .admin-mode .admin-delete-field{
+    display:inline-flex;
+  }
+  .download-link{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    text-decoration:none;
+    border-radius:10px;
+    border:1px solid var(--line);
+    padding:12px 16px;
+    color:var(--ink);
+    font-weight:700;
+  }
+  @media (min-width: 820px){
+    #admin-panel .wrap-wide{
+      max-width:920px;
+    }
+    .admin-grid{
+      grid-template-columns:1fr 1fr;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap" id="app">
+
+  <div class="brandline"><span class="dot"></span> Бриф на разработку сайта</div>
+
+  <div id="form-view">
+    <h1>Расскажите о вашей клинике</h1>
+    <p class="sub">Это займёт 7–10 минут. Чем подробнее ответите — тем точнее и быстрее будет готов сайт.</p>
+
+    <div class="progress-shell">
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-label" id="progressLabel">Шаг 1 из 5</div>
+    </div>
+
+    <div class="card">
+      <form id="brief-form">
+
+        <!-- STEP 0: контакт -->
+        <div class="step active" data-step="0">
+          <div class="eyebrow">Для связи</div>
+          <h2>Как к вам обращаться</h2>
+          <div class="field">
+            <label class="q">Ваше имя / должность<span class="req">*</span></label>
+            <input type="text" name="contactName" required>
+          </div>
+          <div class="field">
+            <label class="q">Телефон или Telegram для связи<span class="req">*</span></label>
+            <input type="text" name="contactPhone" required placeholder="+7 999 000-00-00 или @username">
+          </div>
+        </div>
+
+        <!-- STEP 1: раздел 1 -->
+        <div class="step" data-step="1">
+          <div class="eyebrow">Раздел 1</div>
+          <h2>Основные данные</h2>
+
+          <div class="field">
+            <label class="q">Название клиники / бренда<span class="req">*</span></label>
+            <input type="text" name="q1_name" required>
+          </div>
+
+          <div class="field">
+            <label class="q">Есть ли готовый логотип?<span class="req">*</span></label>
+            <div class="radio-group" data-radio="q2_logo">
+              <label class="opt"><input type="radio" name="q2_logo" value="Да, есть" required><span class="opt-text">Да, есть</span></label>
+              <label class="opt"><input type="radio" name="q2_logo" value="Нет, нужна помощь"><span class="opt-text">Нет, нужна помощь</span></label>
+            </div>
+            <div class="conditional" data-show-if="q2_logo=Да, есть">
+              <input type="text" name="q2_logo_link" placeholder="Ссылка на файл логотипа (Google Drive, Telegram и т.п.)">
+            </div>
+          </div>
+
+          <div class="field">
+            <label class="q">Фирменные цвета</label>
+            <div class="hint">Если есть брендбук — вставьте ссылку на файл. Если нет — напишите «нет, помогите подобрать».</div>
+            <input type="text" name="q3_colors">
+          </div>
+
+          <div class="field">
+            <label class="q">Тип сайта<span class="req">*</span></label>
+            <div class="radio-group" data-radio="q4_type">
+              <label class="opt"><input type="radio" name="q4_type" value="Сайт-визитка (1 страница с блоками)" required><span class="opt-text">Сайт-визитка (1 страница с блоками)</span></label>
+              <label class="opt"><input type="radio" name="q4_type" value="Многостраничный сайт"><span class="opt-text">Многостраничный сайт</span></label>
+              <label class="opt"><input type="radio" name="q4_type" value="Другое"><span class="opt-text">Другое</span></label>
+            </div>
+            <div class="conditional" data-show-if="q4_type=Другое">
+              <input type="text" name="q4_type_other" placeholder="Уточните">
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 2: раздел 2 -->
+        <div class="step" data-step="2">
+          <div class="eyebrow">Раздел 2</div>
+          <h2>Контент для сайта</h2>
+
+          <div class="field">
+            <label class="q">Список услуг с ценами<span class="req">*</span></label>
+            <div class="hint">Текстом ниже или ссылкой на файл</div>
+            <textarea name="q5_services" required></textarea>
+          </div>
+
+          <div class="field">
+            <label class="q">Фото клиники, специалистов, оборудования</label>
+            <div class="hint">Сколько качественных фото есть, и ссылка на них</div>
+            <textarea name="q6_photos"></textarea>
+          </div>
+
+          <div class="field">
+            <label class="q">Фото «до/после» — есть ли, можно ли использовать?</label>
+            <div class="radio-group" data-radio="q7_before_after">
+              <label class="opt"><input type="radio" name="q7_before_after" value="Да, есть и можно использовать"><span class="opt-text">Да, есть и можно использовать</span></label>
+              <label class="opt"><input type="radio" name="q7_before_after" value="Есть, нужно уточнить разрешение"><span class="opt-text">Есть, нужно уточнить разрешение</span></label>
+              <label class="opt"><input type="radio" name="q7_before_after" value="Нет, нужно организовать съёмку"><span class="opt-text">Нет, нужно организовать съёмку</span></label>
+            </div>
+          </div>
+
+          <div class="field">
+            <label class="q">Парные кейсы «до/после + отзыв» от одного клиента</label>
+            <div class="hint">Фото до + описание жалобы + фото после + отзыв — сколько полных таких кейсов есть?</div>
+            <input type="text" name="q8_cases">
+          </div>
+
+          <div class="field">
+            <label class="q">Отзывы клиентов (отдельно от парных кейсов)</label>
+            <div class="hint">В каком виде, сколько штук, можно ли публиковать</div>
+            <textarea name="q9_reviews"></textarea>
+          </div>
+
+          <div class="field">
+            <label class="q">Контакты<span class="req">*</span></label>
+            <div class="hint">Адрес, телефон, соцсети, режим работы</div>
+            <textarea name="q10_contacts" required></textarea>
+          </div>
+
+          <div class="field">
+            <label class="q">Домен и хостинг</label>
+            <div class="radio-group" data-radio="q11_domain">
+              <label class="opt"><input type="radio" name="q11_domain" value="Есть домен и хостинг"><span class="opt-text">Есть домен и хостинг</span></label>
+              <label class="opt"><input type="radio" name="q11_domain" value="Есть только домен"><span class="opt-text">Есть только домен</span></label>
+              <label class="opt"><input type="radio" name="q11_domain" value="Ничего нет, нужна помощь"><span class="opt-text">Ничего нет, нужна помощь</span></label>
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 3: раздел 3 -->
+        <div class="step" data-step="3">
+          <div class="eyebrow">Раздел 3</div>
+          <h2>Дополнительные функции</h2>
+          <div class="hint" style="margin-bottom:16px;">Отметьте всё, что интересно — можно выбрать несколько. Итоговую стоимость обсудим отдельно.</div>
+
+          <div class="check-group">
+            <label class="opt"><input type="checkbox" name="feat" value="Онлайн-запись (форма без календаря) — 5 000–8 000 ₽">
+              <span class="opt-text"><b>Онлайн-запись (форма без календаря)</b><span class="opt-price">5 000–8 000 ₽</span><span class="opt-desc">Заявка приходит в Telegram или на почту, подтверждаете вручную.</span></span>
+            </label>
+            <label class="opt"><input type="checkbox" name="feat" value="Онлайн-запись (виджет YCLIENTS/DIKIDI) — 5 000–10 000 ₽ + подписка от 850 ₽/мес">
+              <span class="opt-text"><b>Онлайн-запись (виджет YCLIENTS/DIKIDI)</b><span class="opt-price">5 000–10 000 ₽ + подписка от ~850 ₽/мес</span><span class="opt-desc">Реальный календарь занятости, автоподтверждение и напоминания.</span></span>
+            </label>
+            <label class="opt"><input type="checkbox" name="feat" value="Квиз «Подбери процедуру» — 5 000–8 000 ₽">
+              <span class="opt-text"><b>Квиз «Подбери процедуру»</b><span class="opt-price">5 000–8 000 ₽</span><span class="opt-desc">3–4 вопроса, сегментирует посетителя ещё до звонка.</span></span>
+            </label>
+            <label class="opt"><input type="checkbox" name="feat" value="Калькулятор стоимости процедур — 4 000–6 000 ₽">
+              <span class="opt-text"><b>Калькулятор стоимости процедур</b><span class="opt-price">4 000–6 000 ₽</span><span class="opt-desc">Клиент видит примерную сумму без звонка.</span></span>
+            </label>
+            <label class="opt"><input type="checkbox" name="feat" value="Кнопка WhatsApp/Telegram — 1 000–2 000 ₽">
+              <span class="opt-text"><b>Кнопка WhatsApp/Telegram</b><span class="opt-price">1 000–2 000 ₽</span><span class="opt-desc">Прямая ссылка на мессенджер клиники.</span></span>
+            </label>
+            <label class="opt"><input type="checkbox" name="feat" value="Виджет «Заказать звонок» — 2 000–3 000 ₽">
+              <span class="opt-text"><b>Виджет «Заказать звонок»</b><span class="opt-price">2 000–3 000 ₽</span><span class="opt-desc">Обратный звонок в течение часа.</span></span>
+            </label>
+            <label class="opt"><input type="checkbox" name="feat" value="Онлайн-чат на сайте (Jivosite / Talk-Me) — 1 500–2 500 ₽">
+              <span class="opt-text"><b>Онлайн-чат на сайте</b><span class="opt-price">1 500–2 500 ₽</span><span class="opt-desc">Виджет чата в углу экрана, мгновенный контакт.</span></span>
+            </label>
+            <label class="opt"><input type="checkbox" name="feat" value="Сертификаты и лицензии — бесплатно в блок «О клинике»">
+              <span class="opt-text"><b>Сертификаты и лицензии</b><span class="opt-price">входит бесплатно</span><span class="opt-desc">Витрина документов в блоке «О клинике» (если фото готовы).</span></span>
+            </label>
+            <label class="opt"><input type="checkbox" name="feat" value="Админ-панель (самостоятельное редактирование) — 10 000–20 000 ₽">
+              <span class="opt-text"><b>Админ-панель (самостоятельное редактирование)</b><span class="opt-price">10 000–20 000 ₽</span><span class="opt-desc">Самостоятельно меняете цены, фото и тексты без разработчика.</span></span>
+            </label>
+            <label class="opt"><input type="checkbox" name="feat" value="Блог / статьи по уходу за кожей — 8 000–15 000 ₽ (без написания текстов)">
+              <span class="opt-text"><b>Блог / статьи по уходу за кожей</b><span class="opt-price">8 000–15 000 ₽ (без написания текстов)</span><span class="opt-desc">Раздел для SEO-трафика. Эффект не сразу, зато долгосрочный.</span></span>
+            </label>
+          </div>
+
+          <div class="field" style="margin-top:18px;">
+            <label class="q">Своя функция — опишите, что нужно</label>
+            <textarea name="q_feat_other"></textarea>
+          </div>
+        </div>
+
+        <!-- STEP 4: раздел 4 -->
+        <div class="step" data-step="4">
+          <div class="eyebrow">Раздел 4</div>
+          <h2>Сроки и пожелания</h2>
+
+          <div class="field">
+            <label class="q">Желаемый срок готовности сайта</label>
+            <input type="text" name="q12_deadline">
+          </div>
+
+          <div class="field">
+            <label class="q">Есть ли сайты/страницы, которые нравятся по стилю?</label>
+            <div class="hint">Вставьте ссылки</div>
+            <textarea name="q13_examples"></textarea>
+          </div>
+
+          <div class="field">
+            <label class="q">Что-то ещё важное, что нужно знать перед началом работы?</label>
+            <textarea name="q14_other"></textarea>
+          </div>
+        </div>
+
+        <div class="nav-row">
+          <button type="button" class="btn-ghost" id="prevBtn">Назад</button>
+          <button type="button" class="btn-primary" id="nextBtn">Далее</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- success -->
+  <div id="success-view" style="display:none;">
+    <div class="card success">
+      <div class="mark">✓</div>
+      <h2>Спасибо!</h2>
+      <p>Анкета отправлена. Мы изучим ответы и свяжемся с вами для уточнения деталей.</p>
+    </div>
+  </div>
+
+  <!-- admin -->
+  <div id="admin-panel">
+    <h1 style="font-size:26px;">Панель администратора</h1>
+    <p class="sub" style="margin-bottom:20px;">Здесь можно быстро поменять текст анкеты, удалить вопросы, настроить получение ответов и собрать ссылку для клиента.</p>
+    <button class="btn-ghost" id="backToForm" style="margin-bottom:20px;">← Вернуться к форме</button>
+
+    <div class="admin-grid">
+      <div class="admin-card">
+        <h2>Куда отправлять ответы</h2>
+        <p>Самый быстрый вариант — email через FormSubmit. При первой отправке FormSubmit пришлёт письмо для подтверждения адреса.</p>
+        <div class="admin-field">
+          <label for="deliveryEmail">Email для ответов</label>
+          <input type="text" id="deliveryEmail" placeholder="name@example.com">
+        </div>
+        <div class="admin-field">
+          <label for="webhookUrl">Webhook URL, если есть</label>
+          <input type="text" id="webhookUrl" placeholder="https://...">
+        </div>
+        <div class="admin-field">
+          <label for="adminCode">Код входа в админку</label>
+          <input type="text" id="adminCode" placeholder="1974">
+        </div>
+        <div class="admin-actions">
+          <button class="btn-primary" id="saveSettings" type="button">Сохранить</button>
+          <button class="btn-ghost" id="copyClientLink" type="button">Скопировать ссылку клиенту</button>
+        </div>
+        <div class="admin-status" id="settingsStatus"></div>
+      </div>
+
+      <div class="admin-card">
+        <h2>Редактирование анкеты</h2>
+        <p>Нажмите «Редактировать текст», меняйте заголовки, вопросы, подсказки и варианты прямо на странице. Чтобы убрать вопрос, выделите его текст и замените на короткий прочерк или удалите лишний блок в скачанном HTML.</p>
+        <div class="admin-actions">
+          <button class="btn-primary" id="toggleEdit" type="button">Редактировать текст</button>
+          <button class="btn-ghost" id="saveTextConfig" type="button">Сохранить текст</button>
+          <button class="btn-ghost" id="deleteQuestionMode" type="button">Удалять вопросы</button>
+          <button class="btn-ghost" id="restoreQuestions" type="button">Вернуть вопросы</button>
+          <button class="btn-ghost" id="downloadConfiguredHtml" type="button">Скачать HTML</button>
+        </div>
+        <div class="admin-status" id="textStatus"></div>
+      </div>
+    </div>
+
+    <div class="admin-card">
+      <h2>Клиентская ссылка</h2>
+      <p>Эта ссылка содержит текущий текст анкеты и настройки доставки. Если сайт загружен на хостинг, сначала откройте админку по публичному адресу, затем скопируйте ссылку.</p>
+      <div class="admin-field">
+        <textarea id="clientLink" readonly></textarea>
+      </div>
+      <div class="admin-muted">Важно: это быстрый статический вариант. Для серьёзной защиты админки нужен серверный пароль.</div>
+    </div>
+
+    <div class="admin-card">
+      <h2>Локальные тестовые ответы</h2>
+      <p>Здесь видны только ответы, отправленные из этого же браузера. Реальные клиентские ответы будут приходить на email или webhook выше.</p>
+      <div class="admin-actions" style="margin-bottom:16px;">
+        <button class="btn-ghost" id="exportLocalResponses" type="button">Скачать JSON</button>
+        <button class="btn-ghost" id="clearLocalResponses" type="button">Очистить локально</button>
+      </div>
+      <div id="adminList"></div>
+    </div>
+  </div>
+
+</div>
+
+<script type="application/json" id="brief-config">{"deliveryEmail":"alexander.anti.99@gmail.com","webhookUrl":"","adminCode":"1974","texts":{}}</script>
+<script>
+const BRIEF_CONFIG_KEY = 'briefAdminConfig:v2';
+const BRIEF_RESPONSES_KEY = 'briefLocalResponses:v2';
+const DEFAULT_ADMIN_CODE = '1974';
+const DEFAULT_CONFIG = {
+  deliveryEmail: '',
+  webhookUrl: '',
+  adminCode: DEFAULT_ADMIN_CODE,
+  texts: {},
+  hiddenFields: []
+};
+
+const steps = Array.from(document.querySelectorAll('.step'));
+let current = 0;
+const totalSteps = steps.length;
+let editingEnabled = false;
+let deletingEnabled = false;
+let activeConfig = loadConfig();
+let baselineTextConfig = null;
+
+const featLabels = {
+  contactName: "Имя / должность",
+  contactPhone: "Телефон или Telegram",
+  q1_name: "Название клиники",
+  q2_logo: "Готовый логотип",
+  q2_logo_link: "Ссылка на логотип",
+  q3_colors: "Фирменные цвета",
+  q4_type: "Тип сайта",
+  q4_type_other: "Уточнение типа сайта",
+  q5_services: "Услуги и цены",
+  q6_photos: "Фото клиники/специалистов",
+  q7_before_after: "Фото до/после",
+  q8_cases: "Парные кейсы до/после",
+  q9_reviews: "Отзывы клиентов",
+  q10_contacts: "Контакты",
+  q11_domain: "Домен и хостинг",
+  q_feat_other: "Своя функция",
+  q12_deadline: "Желаемый срок",
+  q13_examples: "Примеры сайтов",
+  q14_other: "Прочие пожелания"
+};
+
+function getEmbeddedConfig(){
+  const node = document.getElementById('brief-config');
+  if(!node || !node.textContent.trim()) return {};
+  try{
+    return JSON.parse(node.textContent);
+  }catch(e){
+    return {};
+  }
+}
+
+function encodeConfig(config){
+  const json = JSON.stringify(config);
+  const bytes = new TextEncoder().encode(json);
+  let binary = '';
+  bytes.forEach(function(byte){ binary += String.fromCharCode(byte); });
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/,'');
+}
+
+function decodeConfig(raw){
+  try{
+    const normalized = raw.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized + '='.repeat((4 - normalized.length % 4) % 4);
+    const binary = atob(padded);
+    const bytes = Uint8Array.from(binary, function(ch){ return ch.charCodeAt(0); });
+    return JSON.parse(new TextDecoder().decode(bytes));
+  }catch(e){
+    return null;
+  }
+}
+
+function getHashConfig(){
+  const hash = window.location.hash || '';
+  if(!hash.startsWith('#client=')) return null;
+  return decodeConfig(hash.slice(8));
+}
+
+function getLocalConfig(){
+  try{
+    return JSON.parse(localStorage.getItem(BRIEF_CONFIG_KEY) || '{}');
+  }catch(e){
+    return {};
+  }
+}
+
+function loadConfig(){
+  const hashConfig = getHashConfig();
+  if(hashConfig) return Object.assign({}, DEFAULT_CONFIG, getEmbeddedConfig(), hashConfig);
+  return Object.assign({}, DEFAULT_CONFIG, getEmbeddedConfig(), getLocalConfig());
+}
+
+function clientSafeConfig(){
+  return {
+    deliveryEmail: activeConfig.deliveryEmail || '',
+    webhookUrl: activeConfig.webhookUrl || '',
+    texts: collectTextConfig(),
+    hiddenFields: collectHiddenFields()
+  };
+}
+
+function saveLocalConfig(partial){
+  activeConfig = Object.assign({}, activeConfig, partial);
+  localStorage.setItem(BRIEF_CONFIG_KEY, JSON.stringify(activeConfig));
+  updateClientLink();
+}
+
+function ensureFieldKeys(){
+  document.querySelectorAll('#brief-form .field').forEach(function(field, index){
+    if(!field.dataset.fieldKey){
+      const input = field.querySelector('[name]');
+      field.dataset.fieldKey = (input ? input.getAttribute('name') : 'field') + '::' + index;
+    }
+  });
+}
+
+function collectHiddenFields(){
+  ensureFieldKeys();
+  return Array.from(document.querySelectorAll('#brief-form .field[data-hidden-by-admin="true"]')).map(function(field){
+    return field.dataset.fieldKey;
+  });
+}
+
+function applyHiddenFields(keys){
+  ensureFieldKeys();
+  const hidden = new Set(keys || []);
+  document.querySelectorAll('#brief-form .field').forEach(function(field){
+    const isHidden = hidden.has(field.dataset.fieldKey);
+    field.dataset.hiddenByAdmin = isHidden ? 'true' : 'false';
+    field.style.display = isHidden ? 'none' : '';
+  });
+}
+
+function installDeleteButtons(){
+  ensureFieldKeys();
+  document.querySelectorAll('#brief-form .field').forEach(function(field){
+    if(field.querySelector('.admin-delete-field')) return;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'admin-delete-field';
+    btn.textContent = 'Удалить этот вопрос';
+    btn.addEventListener('click', function(){
+      if(!deletingEnabled) return;
+      field.dataset.hiddenByAdmin = 'true';
+      field.style.display = 'none';
+      saveLocalConfig({ hiddenFields: collectHiddenFields() });
+      flash('textStatus', 'Вопрос удалён из клиентской анкеты.');
+    });
+    field.appendChild(btn);
+  });
+}
+
+function setDeleting(on){
+  deletingEnabled = on;
+  document.body.classList.toggle('admin-mode', on);
+  const btn = document.getElementById('deleteQuestionMode');
+  if(btn) btn.textContent = on ? 'Закончить удаление' : 'Удалять вопросы';
+  if(on) installDeleteButtons();
+}
+
+function editableElements(){
+  const selectors = [
+    '.brandline',
+    '#form-view > h1',
+    '#form-view > .sub',
+    '.step .eyebrow',
+    '.step h2',
+    'label.q',
+    '.hint',
+    '.opt-text'
+  ];
+  const all = [];
+  selectors.forEach(function(selector){
+    document.querySelectorAll(selector).forEach(function(el, index){
+      const key = selector + '::' + index;
+      el.dataset.editKey = key;
+      all.push(el);
+    });
+  });
+  return all;
+}
+
+function applyTextConfig(texts){
+  if(!texts) return;
+  editableElements().forEach(function(el){
+    const key = el.dataset.editKey;
+    if(Object.prototype.hasOwnProperty.call(texts, key)){
+      el.innerHTML = texts[key];
+    }
+  });
+  refreshOptionValues();
+}
+
+function snapshotTextConfig(){
+  const texts = {};
+  editableElements().forEach(function(el){
+    texts[el.dataset.editKey] = el.innerHTML;
+  });
+  return texts;
+}
+
+function collectTextConfig(){
+  const current = snapshotTextConfig();
+  if(!baselineTextConfig) return current;
+  const diff = {};
+  Object.keys(current).forEach(function(key){
+    if(current[key] !== baselineTextConfig[key]){
+      diff[key] = current[key];
+    }
+  });
+  return diff;
+}
+
+function setEditing(on){
+  editingEnabled = on;
+  document.body.classList.toggle('editing', on);
+  editableElements().forEach(function(el){
+    el.setAttribute('contenteditable', on ? 'true' : 'false');
+  });
+  const btn = document.getElementById('toggleEdit');
+  if(btn) btn.textContent = on ? 'Закончить редактирование' : 'Редактировать текст';
+}
+
+function refreshOptionValues(){
+  document.querySelectorAll('.opt').forEach(function(opt){
+    const input = opt.querySelector('input');
+    const text = opt.querySelector('.opt-text');
+    if(input && text){
+      input.value = text.textContent.replace(/\s+/g, ' ').trim();
+    }
+  });
+}
+
+function updateProgress(){
+  const pct = Math.round((current/(totalSteps-1))*100);
+  document.getElementById('progressFill').style.width = pct+'%';
+  document.getElementById('progressLabel').textContent = 'Шаг ' + (current+1) + ' из ' + totalSteps;
+}
+
+function showStep(i){
+  steps.forEach(function(s,idx){ s.classList.toggle('active', idx===i); });
+  document.getElementById('prevBtn').disabled = (i===0);
+  document.getElementById('nextBtn').textContent = (i===totalSteps-1) ? 'Отправить' : 'Далее';
+  updateProgress();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+function validateStep(i){
+  const stepEl = steps[i];
+  const required = stepEl.querySelectorAll('[required]');
+  for(const el of required){
+    const parentField = el.closest('.field');
+    if(parentField && parentField.dataset.hiddenByAdmin === 'true') continue;
+    if(el.type==='radio'){
+      const group = stepEl.querySelectorAll('input[name="' + el.name + '"]');
+      const checked = Array.from(group).some(function(r){ return r.checked; });
+      if(!checked){ el.closest('.field').scrollIntoView({behavior:'smooth', block:'center'}); return false; }
+    } else if(!el.value.trim()){
+      el.focus(); return false;
+    }
+  }
+  return true;
+}
+
+document.getElementById('nextBtn').addEventListener('click', async function(){
+  if(!validateStep(current)) return;
+  if(current < totalSteps-1){
+    current++;
+    showStep(current);
+  } else {
+    await submitForm();
+  }
+});
+
+document.getElementById('prevBtn').addEventListener('click', function(){
+  if(current>0){ current--; showStep(current); }
+});
+
+document.querySelectorAll('.opt input').forEach(function(input){
+  input.addEventListener('change', function(){
+    if(input.type==='radio'){
+      document.querySelectorAll('input[name="' + input.name + '"]').forEach(function(r){
+        r.closest('.opt').classList.toggle('checked', r.checked);
+      });
+    } else {
+      input.closest('.opt').classList.toggle('checked', input.checked);
+    }
+    document.querySelectorAll('[data-show-if]').forEach(function(cond){
+      const parts = cond.getAttribute('data-show-if').split('=');
+      const name = parts[0];
+      const val = parts.slice(1).join('=');
+      const match = document.querySelector('input[name="' + name + '"]:checked');
+      cond.classList.toggle('show', !!match && match.value===val);
+    });
+  });
+});
+
+function serializeForm(){
+  refreshOptionValues();
+  const form = document.getElementById('brief-form');
+  const fd = new FormData(form);
+  const data = {};
+  for(const entry of fd.entries()){
+    const key = entry[0];
+    const val = entry[1];
+    if(key==='feat'){
+      if(!data.features) data.features=[];
+      data.features.push(val);
+    } else {
+      data[key]=val;
+    }
+  }
+  data.features = data.features || [];
+  return data;
+}
+
+function makeRecord(data){
+  return Object.assign({
+    clinicName: data.q1_name || 'Без названия',
+    submittedAt: new Date().toISOString(),
+    pageUrl: location.href.split('#')[0]
+  }, data);
+}
+
+function readablePayload(record){
+  const payload = {
+    _subject: 'Новая анкета: ' + (record.clinicName || 'без названия'),
+    _template: 'table',
+    _captcha: 'false',
+    'Дата отправки': new Date(record.submittedAt).toLocaleString('ru-RU'),
+    'Клиника': record.clinicName || ''
+  };
+  Object.keys(featLabels).forEach(function(key){
+    if(record[key]){
+      payload[featLabels[key]] = record[key];
+    }
+  });
+  if(record.features && record.features.length){
+    payload['Выбранные доп. функции'] = record.features.join('\\n');
+  }
+  return payload;
+}
+
+function saveLocalResponse(record){
+  const list = getLocalResponses();
+  list.unshift(record);
+  localStorage.setItem(BRIEF_RESPONSES_KEY, JSON.stringify(list.slice(0, 100)));
+}
+
+function getLocalResponses(){
+  try{
+    return JSON.parse(localStorage.getItem(BRIEF_RESPONSES_KEY) || '[]');
+  }catch(e){
+    return [];
+  }
+}
+
+async function sendToWebhook(url, record){
+  if(!url) return false;
+  try{
+    await fetch(url, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(record)
+    });
+    return true;
+  }catch(e){
+    await fetch(url, {
+      method:'POST',
+      mode:'no-cors',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify(record)
+    });
+    return true;
+  }
+}
+
+function sendToEmail(email, record){
+  return new Promise(function(resolve){
+    if(!email){ resolve(false); return; }
+    const iframeName = 'brief-submit-' + Date.now();
+    const iframe = document.createElement('iframe');
+    iframe.name = iframeName;
+    iframe.style.display = 'none';
+    document.body.appendChild(iframe);
+
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = 'https://formsubmit.co/' + encodeURIComponent(email);
+    form.target = iframeName;
+    form.style.display = 'none';
+
+    const payload = readablePayload(record);
+    Object.keys(payload).forEach(function(key){
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = key;
+      input.value = payload[key];
+      form.appendChild(input);
+    });
+
+    document.body.appendChild(form);
+    form.submit();
+    window.setTimeout(function(){
+      form.remove();
+      iframe.remove();
+      resolve(true);
+    }, 1800);
+  });
+}
+
+async function deliverRecord(record){
+  let delivered = false;
+  if(activeConfig.webhookUrl){
+    delivered = await sendToWebhook(activeConfig.webhookUrl, record);
+  }
+  if(activeConfig.deliveryEmail){
+    delivered = await sendToEmail(activeConfig.deliveryEmail, record) || delivered;
+  }
+  return delivered;
+}
+
+async function submitForm(){
+  const data = serializeForm();
+  const record = makeRecord(data);
+  saveLocalResponse(record);
+  let delivered = false;
+  try{
+    delivered = await deliverRecord(record);
+  }catch(e){
+    console.error('delivery error', e);
+  }
+  document.getElementById('form-view').style.display='none';
+  document.getElementById('success-view').style.display='block';
+  const successCard = document.querySelector('#success-view .success');
+  const oldError = successCard.querySelector('.submit-error');
+  if(oldError) oldError.remove();
+  if(!delivered){
+    const p = document.createElement('p');
+    p.className = 'submit-error';
+    p.textContent = 'Анкета сохранена в этом браузере, но получатель ещё не настроен. Сообщите администратору.';
+    successCard.appendChild(p);
+  }
+}
+
+function showAdmin(){
+  document.getElementById('form-view').style.display='none';
+  document.getElementById('success-view').style.display='none';
+  document.getElementById('admin-panel').classList.add('show');
+  installDeleteButtons();
+  hydrateAdminFields();
+  updateClientLink();
+  loadAdmin();
+}
+
+function requestAdminAccess(){
+  const pass = prompt('Код доступа:');
+  const expected = (getLocalConfig().adminCode || activeConfig.adminCode || DEFAULT_ADMIN_CODE);
+  if(pass !== expected) return;
+  showAdmin();
+}
+
+const adminToggle = document.getElementById('adminToggle');
+if(adminToggle){
+  adminToggle.addEventListener('click', requestAdminAccess);
+}
+
+if(window.location.hash === '#admin'){
+  window.setTimeout(requestAdminAccess, 150);
+}
+
+document.getElementById('backToForm').addEventListener('click', function(){
+  setEditing(false);
+  setDeleting(false);
+  document.getElementById('admin-panel').classList.remove('show');
+  document.getElementById('form-view').style.display='block';
+});
+
+function hydrateAdminFields(){
+  document.getElementById('deliveryEmail').value = activeConfig.deliveryEmail || '';
+  document.getElementById('webhookUrl').value = activeConfig.webhookUrl || '';
+  document.getElementById('adminCode').value = activeConfig.adminCode || DEFAULT_ADMIN_CODE;
+}
+
+function updateClientLink(){
+  const el = document.getElementById('clientLink');
+  if(!el) return;
+  const base = location.href.split('#')[0];
+  el.value = base + '#client=' + encodeConfig(clientSafeConfig());
+}
+
+function flash(id, text){
+  const el = document.getElementById(id);
+  if(!el) return;
+  el.textContent = text;
+  window.setTimeout(function(){ el.textContent = ''; }, 3500);
+}
+
+document.getElementById('saveSettings').addEventListener('click', function(){
+  saveLocalConfig({
+    deliveryEmail: document.getElementById('deliveryEmail').value.trim(),
+    webhookUrl: document.getElementById('webhookUrl').value.trim(),
+    adminCode: document.getElementById('adminCode').value.trim() || DEFAULT_ADMIN_CODE
+  });
+  flash('settingsStatus', 'Сохранено.');
+});
+
+document.getElementById('copyClientLink').addEventListener('click', async function(){
+  updateClientLink();
+  const link = document.getElementById('clientLink');
+  link.select();
+  try{
+    await navigator.clipboard.writeText(link.value);
+    flash('settingsStatus', 'Ссылка скопирована.');
+  }catch(e){
+    document.execCommand('copy');
+    flash('settingsStatus', 'Ссылка выделена и скопирована.');
+  }
+});
+
+document.getElementById('toggleEdit').addEventListener('click', function(){
+  setEditing(!editingEnabled);
+});
+
+document.getElementById('deleteQuestionMode').addEventListener('click', function(){
+  setDeleting(!deletingEnabled);
+});
+
+document.getElementById('restoreQuestions').addEventListener('click', function(){
+  document.querySelectorAll('#brief-form .field').forEach(function(field){
+    field.dataset.hiddenByAdmin = 'false';
+    field.style.display = '';
+  });
+  saveLocalConfig({ hiddenFields: [] });
+  flash('textStatus', 'Все вопросы возвращены.');
+});
+
+document.getElementById('saveTextConfig').addEventListener('click', function(){
+  refreshOptionValues();
+  saveLocalConfig({ texts: collectTextConfig() });
+  flash('textStatus', 'Текст анкеты сохранён.');
+});
+
+document.getElementById('downloadConfiguredHtml').addEventListener('click', function(){
+  refreshOptionValues();
+  const config = clientSafeConfig();
+  const clone = document.documentElement.cloneNode(true);
+  clone.querySelectorAll('[contenteditable]').forEach(function(el){ el.removeAttribute('contenteditable'); });
+  clone.querySelectorAll('.editing').forEach(function(el){ el.classList.remove('editing'); });
+  const embedded = clone.querySelector('#brief-config');
+  if(embedded) embedded.textContent = JSON.stringify(config);
+  const html = '<!DOCTYPE html>\\n' + clone.outerHTML;
+  const blob = new Blob([html], {type:'text/html;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'anketa-klinika-client.html';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  flash('textStatus', 'HTML-файл подготовлен.');
+});
+
+function loadAdmin(){
+  const listEl = document.getElementById('adminList');
+  const records = getLocalResponses();
+  if(records.length===0){
+    listEl.innerHTML = '<p class="empty-state">Пока нет локальных тестовых ответов.</p>';
+    return;
+  }
+  listEl.innerHTML = records.map(renderRecord).join('');
+}
+
+document.getElementById('exportLocalResponses').addEventListener('click', function(){
+  const blob = new Blob([JSON.stringify(getLocalResponses(), null, 2)], {type:'application/json;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'brief-responses.json';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById('clearLocalResponses').addEventListener('click', function(){
+  if(!confirm('Очистить локальные тестовые ответы в этом браузере?')) return;
+  localStorage.removeItem(BRIEF_RESPONSES_KEY);
+  loadAdmin();
+});
+
+function renderRecord(r){
+  const date = new Date(r.submittedAt).toLocaleString('ru-RU');
+  const rows = Object.entries(featLabels).map(function(entry){
+    const k = entry[0];
+    const label = entry[1];
+    const val = r[k];
+    if(!val) return '';
+    return '<dt>' + escapeHtml(label) + '</dt><dd>' + escapeHtml(val) + '</dd>';
+  }).join('');
+  const feats = (r.features && r.features.length)
+    ? '<dt>Выбранные доп. функции</dt><ul class="features-list">' + r.features.map(function(f){ return '<li>• ' + escapeHtml(f) + '</li>'; }).join('') + '</ul>'
+    : '';
+  return '<div class="resp-card"><h3>' + escapeHtml(r.clinicName) + '</h3><div class="resp-meta">' + date + ' · ' + escapeHtml(r.contactName||'') + ' · ' + escapeHtml(r.contactPhone||'') + '</div><dl>' + rows + feats + '</dl></div>';
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, function(m){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];
+  });
+}
+
+baselineTextConfig = snapshotTextConfig();
+applyTextConfig(activeConfig.texts);
+applyHiddenFields(activeConfig.hiddenFields);
+showStep(0);
+updateClientLink();
+
+</script>
+
+</body>
+</html>
