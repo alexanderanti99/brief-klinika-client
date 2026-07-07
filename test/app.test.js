@@ -82,6 +82,7 @@ test('public config exposes editable content without leaking secrets', async () 
   assert.deepEqual(response.body.hiddenFields, ['q3_colors::4']);
   assert.equal(Object.hasOwn(response.body, 'adminCode'), false);
   assert.equal(Object.hasOwn(response.body, 'SMTP_PASS'), false);
+  assert.equal(Object.hasOwn(response.body, 'TELEGRAM_BOT_TOKEN'), false);
   assert.equal(Object.hasOwn(response.body, 'sessionSecret'), false);
 });
 
@@ -169,6 +170,8 @@ test('valid submission is stored and sent by email', async () => {
 
   assert.equal(response.body.ok, true);
   assert.equal(response.body.delivered, true);
+  assert.equal(response.body.emailDelivered, true);
+  assert.equal(response.body.telegramDelivered, false);
   assert.equal(storage.state.responses.length, 1);
   assert.equal(storage.state.responses[0].clinicName, 'Smile Clinic');
   assert.equal(sent.length, 1);
@@ -210,4 +213,88 @@ test('valid submission is stored without email when SMTP is not configured', asy
   assert.equal(response.body.delivered, false);
   assert.equal(storage.state.responses.length, 1);
   assert.equal(storage.state.responses[0].clinicName, 'Smile Clinic');
+});
+
+test('valid submission is stored when email delivery fails', async () => {
+  const storage = createFakeStorage();
+  const app = createApp({
+    env: baseEnv(),
+    storage,
+    logger: { error() {} },
+    mailer: {
+      isConfigured() {
+        return true;
+      },
+      async sendBrief() {
+        throw new Error('bad smtp credentials');
+      }
+    }
+  });
+
+  const response = await request(app)
+    .post('/api/submit')
+    .send({
+      contactName: 'Alexander',
+      contactPhone: '@alex',
+      q1_name: 'Smile Clinic',
+      q2_logo: 'Да, есть',
+      q4_type: 'Сайт-визитка',
+      q5_services: 'Cleaning - 5000',
+      q10_contacts: 'Moscow'
+    })
+    .expect(200);
+
+  assert.equal(response.body.ok, true);
+  assert.equal(response.body.emailDelivered, false);
+  assert.equal(response.body.delivered, false);
+  assert.equal(storage.state.responses.length, 1);
+});
+
+test('valid submission sends telegram notification when configured', async () => {
+  const storage = createFakeStorage();
+  const telegram = [];
+  const app = createApp({
+    env: {
+      ADMIN_CODE: '1974',
+      SESSION_SECRET: 'test-session-secret'
+    },
+    storage,
+    mailer: {
+      isConfigured() {
+        return false;
+      },
+      async sendBrief() {
+        throw new Error('should not send email');
+      }
+    },
+    notifier: {
+      isConfigured() {
+        return true;
+      },
+      async sendBrief(record) {
+        telegram.push(record);
+      }
+    }
+  });
+
+  const response = await request(app)
+    .post('/api/submit')
+    .send({
+      contactName: 'Alexander',
+      contactPhone: '@alex',
+      q1_name: 'Smile Clinic',
+      q2_logo: 'Да, есть',
+      q4_type: 'Сайт-визитка',
+      q5_services: 'Cleaning - 5000',
+      q10_contacts: 'Moscow'
+    })
+    .expect(200);
+
+  assert.equal(response.body.ok, true);
+  assert.equal(response.body.delivered, true);
+  assert.equal(response.body.emailDelivered, false);
+  assert.equal(response.body.telegramDelivered, true);
+  assert.equal(storage.state.responses.length, 1);
+  assert.equal(telegram.length, 1);
+  assert.equal(telegram[0].payload.contactName, 'Alexander');
 });

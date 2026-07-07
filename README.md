@@ -38,3 +38,8 @@ Email delivery is optional. The form always saves responses in the admin panel w
 - `SMTP_SECURE` - `true` for port `465`, usually `false` for `587`.
 
 The client filling out the brief never enters email credentials. SMTP variables belong to the server-side sender mailbox only.
+
+Telegram delivery is optional too. If you want Telegram notifications with the full brief text, add:
+
+- `TELEGRAM_BOT_TOKEN` - token from `@BotFather`.
+- `TELEGRAM_CHAT_ID` - your personal chat id or group chat id.

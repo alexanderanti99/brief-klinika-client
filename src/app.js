@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import cookieParser from 'cookie-parser';
 import express from 'express';
 import { isMailEnvConfigured } from './mailer.js';
+import { isTelegramEnvConfigured } from './telegram.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.resolve(__dirname, '..', 'public');
@@ -77,11 +78,12 @@ function normalizeConfig(input) {
   return { texts, hiddenFields };
 }
 
-function publicConfig(config, mailConfigured) {
+function publicConfig(config, mailConfigured, telegramConfigured) {
   const normalized = normalizeConfig(config);
   return {
     ...normalized,
-    mailConfigured
+    mailConfigured,
+    telegramConfigured
   };
 }
 
@@ -144,6 +146,11 @@ export function createApp(options = {}) {
   const env = options.env || process.env;
   const storage = options.storage;
   const mailer = options.mailer;
+  const logger = options.logger || console;
+  const notifier = options.notifier || {
+    isConfigured: () => false,
+    sendBrief: async () => {}
+  };
   if (!storage) throw new Error('storage is required');
   if (!mailer) throw new Error('mailer is required');
 
@@ -156,6 +163,10 @@ export function createApp(options = {}) {
   const mailConfigured = () => {
     if (typeof mailer.isConfigured === 'function') return mailer.isConfigured();
     return isMailEnvConfigured(env);
+  };
+  const telegramConfigured = () => {
+    if (typeof notifier.isConfigured === 'function') return notifier.isConfigured();
+    return isTelegramEnvConfigured(env);
   };
 
   const requireAdmin = (req, res, next) => {
@@ -172,7 +183,7 @@ export function createApp(options = {}) {
 
   app.get('/api/config', asyncRoute(async (req, res) => {
     const config = await storage.getConfig();
-    res.json(publicConfig(config, mailConfigured()));
+    res.json(publicConfig(config, mailConfigured(), telegramConfigured()));
   }));
 
   app.post('/api/submit', asyncRoute(async (req, res) => {
@@ -186,21 +197,34 @@ export function createApp(options = {}) {
 
     const record = makeRecord(payload);
     const saved = await storage.createResponse(record);
-    if (!mailConfigured()) {
-      res.json({ ok: true, delivered: false, responseId: saved.id || null });
-      return;
+    let emailDelivered = false;
+    let telegramDelivered = false;
+
+    if (mailConfigured()) {
+      try {
+        await mailer.sendBrief(saved);
+        emailDelivered = true;
+      } catch (error) {
+        logger.error('mail delivery failed', error.message);
+      }
     }
 
-    try {
-      await mailer.sendBrief(saved);
-      res.json({ ok: true, delivered: true, responseId: saved.id || null });
-    } catch (error) {
-      console.error('mail delivery failed', error);
-      res.status(502).json({
-        error: 'mail_delivery_failed',
-        responseId: saved.id || null
-      });
+    if (telegramConfigured()) {
+      try {
+        await notifier.sendBrief(saved);
+        telegramDelivered = true;
+      } catch (error) {
+        logger.error('telegram delivery failed', error.message);
+      }
     }
+
+    res.json({
+      ok: true,
+      delivered: emailDelivered || telegramDelivered,
+      emailDelivered,
+      telegramDelivered,
+      responseId: saved.id || null
+    });
   }));
 
   app.post('/api/admin/login', (req, res) => {
@@ -228,7 +252,8 @@ export function createApp(options = {}) {
     res.json({
       config: normalizeConfig(config),
       mailTo: envValue(env, 'MAIL_TO', ''),
-      mailConfigured: mailConfigured()
+      mailConfigured: mailConfigured(),
+      telegramConfigured: telegramConfigured()
     });
   }));
 
@@ -236,7 +261,8 @@ export function createApp(options = {}) {
     const config = await storage.saveConfig(normalizeConfig(req.body));
     res.json({
       config: normalizeConfig(config),
-      mailConfigured: mailConfigured()
+      mailConfigured: mailConfigured(),
+      telegramConfigured: telegramConfigured()
     });
   }));
 
@@ -260,7 +286,7 @@ export function createApp(options = {}) {
   });
 
   app.use((error, req, res, next) => {
-    console.error(error);
+    logger.error(error);
     if (res.headersSent) {
       next(error);
       return;
