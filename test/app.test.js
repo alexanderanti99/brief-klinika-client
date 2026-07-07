@@ -22,7 +22,8 @@ function createFakeStorage(initialConfig = {}) {
     async saveConfig(config) {
       state.config = {
         texts: config.texts || {},
-        hiddenFields: config.hiddenFields || []
+        hiddenFields: config.hiddenFields || [],
+        formSchema: config.formSchema
       };
       return state.config;
     },
@@ -78,12 +79,152 @@ test('public config exposes editable content without leaking secrets', async () 
   const response = await request(app).get('/api/config').expect(200);
 
   assert.equal(response.body.mailConfigured, true);
+  assert.ok(response.body.formSchema);
+  assert.ok(response.body.formSchema.sections.length > 0);
   assert.deepEqual(response.body.texts, { 'label.q::0': 'Client name' });
   assert.deepEqual(response.body.hiddenFields, ['q3_colors::4']);
   assert.equal(Object.hasOwn(response.body, 'adminCode'), false);
   assert.equal(Object.hasOwn(response.body, 'SMTP_PASS'), false);
   assert.equal(Object.hasOwn(response.body, 'TELEGRAM_BOT_TOKEN'), false);
   assert.equal(Object.hasOwn(response.body, 'sessionSecret'), false);
+});
+
+test('admin can save form schema with a new section and field', async () => {
+  const storage = createFakeStorage();
+  const app = createApp({
+    env: baseEnv(),
+    storage,
+    mailer: { sendBrief: async () => ({ accepted: ['owner@example.com'] }) }
+  });
+  const agent = request.agent(app);
+  const formSchema = {
+    version: 1,
+    sections: [
+      {
+        id: 'custom',
+        eyebrow: 'Новый раздел',
+        title: 'Новые вопросы',
+        fields: [
+          { id: 'custom_question', type: 'textarea', label: 'Что важно?', required: true }
+        ]
+      }
+    ]
+  };
+
+  await agent.post('/api/admin/login').send({ code: '1974' }).expect(204);
+  const response = await agent
+    .put('/api/admin/config')
+    .send({ texts: {}, hiddenFields: [], formSchema })
+    .expect(200);
+
+  assert.equal(response.body.config.formSchema.sections[0].fields[0].id, 'custom_question');
+  assert.equal(response.body.config.formSchema.sections[0].fields[0].type, 'textarea');
+  assert.equal(response.body.config.formSchema.sections[0].fields[0].label, 'Что важно?');
+  assert.equal(response.body.config.formSchema.sections[0].fields[0].required, true);
+});
+
+test('submission validates required fields from saved form schema', async () => {
+  const storage = createFakeStorage({
+    formSchema: {
+      version: 1,
+      sections: [
+        {
+          id: 'custom',
+          eyebrow: 'Новый раздел',
+          title: 'Новые вопросы',
+          fields: [
+            { id: 'custom_question', type: 'textarea', label: 'Что важно?', required: true }
+          ]
+        }
+      ]
+    }
+  });
+  const app = createApp({
+    env: baseEnv(),
+    storage,
+    mailer: { sendBrief: async () => ({ accepted: ['owner@example.com'] }) }
+  });
+
+  const response = await request(app)
+    .post('/api/submit')
+    .send({})
+    .expect(400);
+
+  assert.equal(response.body.error, 'validation_failed');
+  assert.deepEqual(response.body.fields, ['custom_question']);
+});
+
+test('conditional required fields are required only when visible', async () => {
+  const storage = createFakeStorage({
+    formSchema: {
+      version: 1,
+      sections: [
+        {
+          id: 'custom',
+          eyebrow: 'Custom',
+          title: 'Custom questions',
+          fields: [
+            { id: 'has_logo', type: 'radio', label: 'Has logo?', required: true, options: ['Yes', 'No'] },
+            { id: 'logo_link', type: 'text', label: 'Logo link', required: true, showWhen: { fieldId: 'has_logo', value: 'Yes' } }
+          ]
+        }
+      ]
+    }
+  });
+  const app = createApp({
+    env: baseEnv(),
+    storage,
+    mailer: { sendBrief: async () => ({ accepted: ['owner@example.com'] }) }
+  });
+
+  await request(app)
+    .post('/api/submit')
+    .send({ has_logo: 'No' })
+    .expect(200);
+
+  const response = await request(app)
+    .post('/api/submit')
+    .send({ has_logo: 'Yes' })
+    .expect(400);
+
+  assert.deepEqual(response.body.fields, ['logo_link']);
+});
+
+test('submission stores labels for custom form fields', async () => {
+  const storage = createFakeStorage({
+    formSchema: {
+      version: 1,
+      sections: [
+        {
+          id: 'custom',
+          eyebrow: 'Custom',
+          title: 'Custom questions',
+          fields: [
+            { id: 'custom_question', type: 'textarea', label: 'Important context', required: true }
+          ]
+        }
+      ]
+    }
+  });
+  const sent = [];
+  const app = createApp({
+    env: baseEnv(),
+    storage,
+    mailer: {
+      async sendBrief(record) {
+        sent.push(record);
+        return { accepted: ['owner@example.com'] };
+      }
+    }
+  });
+
+  await request(app)
+    .post('/api/submit')
+    .send({ custom_question: 'Need a calm admin panel' })
+    .expect(200);
+
+  assert.equal(storage.state.responses[0].payload._fieldLabels.custom_question, 'Important context');
+  assert.equal(sent[0].payload._fieldLabels.custom_question, 'Important context');
 });
 
 test('admin config writes require authentication', async () => {

@@ -1,10 +1,12 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { Pool } from 'pg';
+import { defaultFormSchema } from './default-schema.js';
 
 const defaultConfig = {
   texts: {},
-  hiddenFields: []
+  hiddenFields: [],
+  formSchema: defaultFormSchema
 };
 
 function normalizeConfig(config) {
@@ -12,7 +14,10 @@ function normalizeConfig(config) {
     texts: config?.texts && typeof config.texts === 'object' && !Array.isArray(config.texts)
       ? config.texts
       : {},
-    hiddenFields: Array.isArray(config?.hiddenFields) ? config.hiddenFields : []
+    hiddenFields: Array.isArray(config?.hiddenFields) ? config.hiddenFields : [],
+    formSchema: config?.formSchema && Array.isArray(config.formSchema.sections)
+      ? config.formSchema
+      : defaultFormSchema
   };
 }
 

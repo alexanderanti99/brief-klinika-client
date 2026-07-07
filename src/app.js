@@ -3,22 +3,13 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import cookieParser from 'cookie-parser';
 import express from 'express';
+import { defaultFormSchema } from './default-schema.js';
 import { isMailEnvConfigured } from './mailer.js';
 import { isTelegramEnvConfigured } from './telegram.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.resolve(__dirname, '..', 'public');
 const oneDayMs = 24 * 60 * 60 * 1000;
-
-const requiredSubmissionFields = [
-  'contactName',
-  'contactPhone',
-  'q1_name',
-  'q2_logo',
-  'q4_type',
-  'q5_services',
-  'q10_contacts'
-];
 
 function envValue(env, key, fallback = '') {
   return env[key] || fallback;
@@ -61,6 +52,56 @@ function isValidSessionCookie(value, env) {
   return safeEqual(signature, expected);
 }
 
+function clone(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function normalizeId(value, fallback) {
+  return String(value || fallback).trim().replace(/[^a-zA-Z0-9_:-]/g, '_').slice(0, 80);
+}
+
+function normalizeField(field, index) {
+  const type = ['text', 'textarea', 'radio', 'checkbox'].includes(field?.type) ? field.type : 'text';
+  const id = normalizeId(field?.id, `field_${index + 1}`);
+  const options = Array.isArray(field?.options)
+    ? field.options.filter((option) => typeof option === 'string' && option.trim()).map((option) => option.trim().slice(0, 500))
+    : [];
+  return {
+    id,
+    type,
+    label: String(field?.label || id).slice(0, 500),
+    hint: String(field?.hint || '').slice(0, 1000),
+    placeholder: String(field?.placeholder || '').slice(0, 500),
+    required: Boolean(field?.required),
+    options,
+    showWhen: field?.showWhen && typeof field.showWhen === 'object'
+      ? {
+        fieldId: normalizeId(field.showWhen.fieldId, ''),
+        value: String(field.showWhen.value || '').slice(0, 500)
+      }
+      : null
+  };
+}
+
+function normalizeFormSchema(schema) {
+  const source = schema && Array.isArray(schema.sections) ? schema : defaultFormSchema;
+  const sections = source.sections
+    .map((section, sectionIndex) => ({
+      id: normalizeId(section?.id, `section_${sectionIndex + 1}`),
+      eyebrow: String(section?.eyebrow || `Раздел ${sectionIndex + 1}`).slice(0, 160),
+      title: String(section?.title || `Раздел ${sectionIndex + 1}`).slice(0, 300),
+      fields: Array.isArray(section?.fields)
+        ? section.fields.map(normalizeField).filter((field) => field.id && field.label)
+        : []
+    }))
+    .filter((section) => section.fields.length > 0);
+
+  return {
+    version: 1,
+    sections: sections.length > 0 ? sections : clone(defaultFormSchema.sections)
+  };
+}
+
 function normalizeConfig(input) {
   const texts = input && typeof input.texts === 'object' && !Array.isArray(input.texts)
     ? Object.fromEntries(
@@ -75,7 +116,11 @@ function normalizeConfig(input) {
       .map((value) => value.slice(0, 160))
     : [];
 
-  return { texts, hiddenFields };
+  return {
+    texts,
+    hiddenFields,
+    formSchema: normalizeFormSchema(input?.formSchema)
+  };
 }
 
 function publicConfig(config, mailConfigured, telegramConfigured) {
@@ -95,13 +140,33 @@ function hiddenFieldNames(config) {
   );
 }
 
+function isFieldActive(field, payload) {
+  if (!field.showWhen?.fieldId || !field.showWhen?.value) return true;
+  const value = payload[field.showWhen.fieldId];
+  return Array.isArray(value)
+    ? value.includes(field.showWhen.value)
+    : value === field.showWhen.value;
+}
+
 function validateSubmission(payload, config) {
   const hidden = hiddenFieldNames(config);
-  return requiredSubmissionFields.filter((field) => {
-    if (hidden.has(field)) return false;
-    const value = payload[field];
+  const schema = normalizeFormSchema(config.formSchema);
+  return schema.sections.flatMap((section) => section.fields).filter((field) => {
+    if (!field.required || hidden.has(field.id) || !isFieldActive(field, payload)) return false;
+    const value = payload[field.id];
+    if (Array.isArray(value)) return value.length === 0;
     return typeof value !== 'string' || value.trim().length === 0;
+  }).map((field) => field.id);
+}
+
+function buildFieldLabels(schema) {
+  const labels = {};
+  normalizeFormSchema(schema).sections.forEach((section) => {
+    section.fields.forEach((field) => {
+      labels[field.id] = field.label;
+    });
   });
+  return labels;
 }
 
 function normalizeSubmission(body) {
@@ -128,11 +193,14 @@ function normalizeSubmission(body) {
   return payload;
 }
 
-function makeRecord(payload) {
+function makeRecord(payload, config) {
   return {
     clinicName: payload.q1_name || 'Без названия',
     submittedAt: new Date().toISOString(),
-    payload
+    payload: {
+      ...payload,
+      _fieldLabels: buildFieldLabels(config.formSchema)
+    }
   };
 }
 
@@ -195,7 +263,7 @@ export function createApp(options = {}) {
       return;
     }
 
-    const record = makeRecord(payload);
+    const record = makeRecord(payload, config);
     const saved = await storage.createResponse(record);
     let emailDelivered = false;
     let telegramDelivered = false;
