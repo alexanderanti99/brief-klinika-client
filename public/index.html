@@ -307,7 +307,29 @@
     padding:14px;
     margin-top:12px;
     background:#FCFBF9;
+    position:relative;
   }
+  .schema-field-drag-row{
+    display:flex;
+    margin-bottom:8px;
+  }
+  .schema-drag{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    background:#F1EEE9;
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:4px 10px;
+    font-size:12px;
+    font-weight:700;
+    color:var(--ink-soft);
+    cursor:grab;
+    user-select:none;
+  }
+  .schema-drag:hover{ color:var(--ink); border-color:var(--accent); }
+  .schema-drag:active{ cursor:grabbing; }
+  .schema-field.dragging{ opacity:.45; outline:2px dashed var(--accent); }
   .schema-field-top{
     display:grid;
     grid-template-columns:minmax(0,1fr) 190px;
@@ -484,7 +506,7 @@
   <div class="brandline"><span class="dot"></span> Бриф на разработку сайта</div>
 
   <div id="form-view">
-    <h1>Расскажите о вашей клинике</h1>
+    <h1>Расскажите о вашем бренде</h1>
     <p class="sub">Это займёт 7–10 минут. Чем подробнее ответите — тем точнее и быстрее будет готов сайт.</p>
 
     <div class="progress-shell">
@@ -1566,6 +1588,7 @@ function renderSchemaEditorField(field, fieldIndex){
   const showValue = field.showWhen ? field.showWhen.value : '';
   const usesOptions = field.type === 'radio' || field.type === 'checkbox';
   return '<div class="schema-field" data-field-index="' + fieldIndex + '">' +
+    '<div class="schema-field-drag-row"><button class="schema-drag" type="button" draggable="true" data-schema-drag aria-label="Перетащите, чтобы изменить порядок вопроса" title="Перетащите, чтобы изменить порядок вопроса">⠿ перетащить</button></div>' +
     '<input type="hidden" data-schema-field="id" value="' + escapeHtml(field.id) + '">' +
     '<input type="hidden" data-schema-field="showWhenField" value="' + escapeHtml(showField) + '">' +
     '<input type="hidden" data-schema-field="showWhenValue" value="' + escapeHtml(showValue) + '">' +
@@ -1690,6 +1713,55 @@ if(schemaEditor){
     }
     activeConfig.formSchema = normalizeClientSchema(schema);
     renderSchemaEditor();
+  });
+
+  let schemaDragSrc = null;
+  schemaEditor.addEventListener('dragstart', function(event){
+    const handle = event.target.closest('[data-schema-drag]');
+    if(!handle) return;
+    const fieldEl = handle.closest('.schema-field');
+    const sectionEl = fieldEl ? fieldEl.closest('.schema-section') : null;
+    if(!fieldEl || !sectionEl) return;
+    schemaDragSrc = { section: Number(sectionEl.dataset.sectionIndex), index: Number(fieldEl.dataset.fieldIndex) };
+    fieldEl.classList.add('dragging');
+    event.dataTransfer.effectAllowed = 'move';
+    try{ event.dataTransfer.setData('text/plain', ''); }catch(_){ }
+  });
+  schemaEditor.addEventListener('dragover', function(event){
+    if(!schemaDragSrc) return;
+    const overField = event.target.closest('.schema-field');
+    if(!overField) return;
+    const sectionEl = overField.closest('.schema-section');
+    if(!sectionEl || Number(sectionEl.dataset.sectionIndex) !== schemaDragSrc.section) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+  });
+  schemaEditor.addEventListener('drop', function(event){
+    if(!schemaDragSrc) return;
+    const overField = event.target.closest('.schema-field');
+    const sectionEl = overField ? overField.closest('.schema-section') : null;
+    const src = schemaDragSrc;
+    schemaDragSrc = null;
+    if(!overField || !sectionEl) return;
+    const section = Number(sectionEl.dataset.sectionIndex);
+    if(section !== src.section) return;
+    event.preventDefault();
+    const toIndex = Number(overField.dataset.fieldIndex);
+    if(toIndex === src.index) return;
+    const schema = collectSchemaFromEditor();
+    if(!schema || !schema.sections[section]) return;
+    const fields = schema.sections[section].fields;
+    if(src.index < 0 || src.index >= fields.length) return;
+    const moved = fields.splice(src.index, 1)[0];
+    fields.splice(toIndex, 0, moved);
+    activeConfig.formSchema = normalizeClientSchema(schema);
+    renderSchemaEditor();
+    flash('schemaStatus', 'Порядок изменён. Нажмите «Сохранить анкету», чтобы применить.');
+  });
+  schemaEditor.addEventListener('dragend', function(){
+    schemaDragSrc = null;
+    const dragging = schemaEditor.querySelector('.schema-field.dragging');
+    if(dragging) dragging.classList.remove('dragging');
   });
 }
 
