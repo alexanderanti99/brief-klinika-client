@@ -542,21 +542,17 @@
     <div class="admin-grid">
       <div class="admin-card">
         <h2>Куда отправлять ответы</h2>
-        <p>Самый быстрый вариант — email через FormSubmit. При первой отправке FormSubmit пришлёт письмо для подтверждения адреса.</p>
+        <p>Отправка теперь работает через сервер. Email и SMTP-доступы меняются в Railway Variables, чтобы не хранить секреты в браузере.</p>
         <div class="admin-field">
           <label for="deliveryEmail">Email для ответов</label>
-          <input type="text" id="deliveryEmail" placeholder="name@example.com">
+          <input type="text" id="deliveryEmail" placeholder="MAIL_TO не настроен" readonly>
         </div>
         <div class="admin-field">
-          <label for="webhookUrl">Webhook URL, если есть</label>
-          <input type="text" id="webhookUrl" placeholder="https://...">
-        </div>
-        <div class="admin-field">
-          <label for="adminCode">Код входа в админку</label>
-          <input type="text" id="adminCode" placeholder="1974">
+          <label for="mailStatus">Статус почты</label>
+          <input type="text" id="mailStatus" placeholder="Проверяется..." readonly>
         </div>
         <div class="admin-actions">
-          <button class="btn-primary" id="saveSettings" type="button">Сохранить</button>
+          <button class="btn-primary" id="saveSettings" type="button">Обновить статус</button>
           <button class="btn-ghost" id="copyClientLink" type="button">Скопировать ссылку клиенту</button>
         </div>
         <div class="admin-status" id="settingsStatus"></div>
@@ -578,19 +574,19 @@
 
     <div class="admin-card">
       <h2>Клиентская ссылка</h2>
-      <p>Эта ссылка содержит текущий текст анкеты и настройки доставки. Если сайт загружен на хостинг, сначала откройте админку по публичному адресу, затем скопируйте ссылку.</p>
+      <p>На сервере клиенту достаточно обычной публичной ссылки. Все правки текста подтягиваются из серверных настроек.</p>
       <div class="admin-field">
         <textarea id="clientLink" readonly></textarea>
       </div>
-      <div class="admin-muted">Важно: это быстрый статический вариант. Для серьёзной защиты админки нужен серверный пароль.</div>
+      <div class="admin-muted">Для входа в админку используйте публичный адрес с #admin.</div>
     </div>
 
     <div class="admin-card">
-      <h2>Локальные тестовые ответы</h2>
-      <p>Здесь видны только ответы, отправленные из этого же браузера. Реальные клиентские ответы будут приходить на email или webhook выше.</p>
+      <h2>Ответы</h2>
+      <p>Здесь видны последние ответы, сохранённые сервером. Email-доставка работает параллельно.</p>
       <div class="admin-actions" style="margin-bottom:16px;">
         <button class="btn-ghost" id="exportLocalResponses" type="button">Скачать JSON</button>
-        <button class="btn-ghost" id="clearLocalResponses" type="button">Очистить локально</button>
+        <button class="btn-ghost" id="clearLocalResponses" type="button">Очистить список</button>
       </div>
       <div id="adminList"></div>
     </div>
@@ -598,17 +594,15 @@
 
 </div>
 
-<script type="application/json" id="brief-config">{"deliveryEmail":"alexander.anti.99@gmail.com","webhookUrl":"","adminCode":"1974","texts":{}}</script>
+<script type="application/json" id="brief-config">{"texts":{},"hiddenFields":[]}</script>
 <script>
 const BRIEF_CONFIG_KEY = 'briefAdminConfig:v2';
 const BRIEF_RESPONSES_KEY = 'briefLocalResponses:v2';
-const DEFAULT_ADMIN_CODE = '1974';
 const DEFAULT_CONFIG = {
-  deliveryEmail: '',
-  webhookUrl: '',
-  adminCode: DEFAULT_ADMIN_CODE,
   texts: {},
-  hiddenFields: []
+  hiddenFields: [],
+  mailConfigured: false,
+  deliveryEmail: ''
 };
 
 const steps = Array.from(document.querySelectorAll('.step'));
@@ -618,6 +612,8 @@ let editingEnabled = false;
 let deletingEnabled = false;
 let activeConfig = loadConfig();
 let baselineTextConfig = null;
+let serverMode = false;
+let adminAuthenticated = false;
 
 const featLabels = {
   contactName: "Имя / должность",
@@ -691,10 +687,45 @@ function loadConfig(){
   return Object.assign({}, DEFAULT_CONFIG, getEmbeddedConfig(), getLocalConfig());
 }
 
+async function apiRequest(url, options){
+  const opts = Object.assign({
+    credentials: 'same-origin',
+    headers: {}
+  }, options || {});
+  if(opts.body && typeof opts.body !== 'string'){
+    opts.headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(opts.body);
+  }
+  const response = await fetch(url, opts);
+  let body = null;
+  const contentType = response.headers.get('content-type') || '';
+  if(contentType.includes('application/json')){
+    body = await response.json();
+  }
+  if(!response.ok){
+    const error = new Error(body && body.error ? body.error : 'request_failed');
+    error.status = response.status;
+    error.body = body;
+    throw error;
+  }
+  return body;
+}
+
+async function loadServerConfig(){
+  if(location.protocol === 'file:' || getHashConfig()) return false;
+  try{
+    const config = await apiRequest('/api/config');
+    activeConfig = Object.assign({}, activeConfig, config);
+    serverMode = true;
+    return true;
+  }catch(e){
+    serverMode = false;
+    return false;
+  }
+}
+
 function clientSafeConfig(){
   return {
-    deliveryEmail: activeConfig.deliveryEmail || '',
-    webhookUrl: activeConfig.webhookUrl || '',
     texts: collectTextConfig(),
     hiddenFields: collectHiddenFields()
   };
@@ -703,6 +734,22 @@ function clientSafeConfig(){
 function saveLocalConfig(partial){
   activeConfig = Object.assign({}, activeConfig, partial);
   localStorage.setItem(BRIEF_CONFIG_KEY, JSON.stringify(activeConfig));
+  updateClientLink();
+}
+
+async function saveConfig(partial){
+  activeConfig = Object.assign({}, activeConfig, partial);
+  if(serverMode && adminAuthenticated){
+    const result = await apiRequest('/api/admin/config', {
+      method: 'PUT',
+      body: clientSafeConfig()
+    });
+    activeConfig = Object.assign({}, activeConfig, result.config || {}, {
+      mailConfigured: !!result.mailConfigured
+    });
+  } else {
+    saveLocalConfig(partial);
+  }
   updateClientLink();
 }
 
@@ -744,7 +791,9 @@ function installDeleteButtons(){
       if(!deletingEnabled) return;
       field.dataset.hiddenByAdmin = 'true';
       field.style.display = 'none';
-      saveLocalConfig({ hiddenFields: collectHiddenFields() });
+      saveConfig({ hiddenFields: collectHiddenFields() }).catch(function(){
+        flash('textStatus', 'Не удалось сохранить удаление на сервере.');
+      });
       flash('textStatus', 'Вопрос удалён из клиентской анкеты.');
     });
     field.appendChild(btn);
@@ -923,25 +972,6 @@ function makeRecord(data){
   }, data);
 }
 
-function readablePayload(record){
-  const payload = {
-    _subject: 'Новая анкета: ' + (record.clinicName || 'без названия'),
-    _template: 'table',
-    _captcha: 'false',
-    'Дата отправки': new Date(record.submittedAt).toLocaleString('ru-RU'),
-    'Клиника': record.clinicName || ''
-  };
-  Object.keys(featLabels).forEach(function(key){
-    if(record[key]){
-      payload[featLabels[key]] = record[key];
-    }
-  });
-  if(record.features && record.features.length){
-    payload['Выбранные доп. функции'] = record.features.join('\\n');
-  }
-  return payload;
-}
-
 function saveLocalResponse(record){
   const list = getLocalResponses();
   list.unshift(record);
@@ -956,109 +986,96 @@ function getLocalResponses(){
   }
 }
 
-async function sendToWebhook(url, record){
-  if(!url) return false;
-  try{
-    await fetch(url, {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify(record)
-    });
-    return true;
-  }catch(e){
-    await fetch(url, {
-      method:'POST',
-      mode:'no-cors',
-      headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body:JSON.stringify(record)
-    });
-    return true;
+function setFormError(text){
+  const card = document.querySelector('#brief-form').closest('.card');
+  let error = document.getElementById('formSubmitError');
+  if(!text){
+    if(error) error.remove();
+    return;
   }
-}
-
-function sendToEmail(email, record){
-  return new Promise(function(resolve){
-    if(!email){ resolve(false); return; }
-    const iframeName = 'brief-submit-' + Date.now();
-    const iframe = document.createElement('iframe');
-    iframe.name = iframeName;
-    iframe.style.display = 'none';
-    document.body.appendChild(iframe);
-
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = 'https://formsubmit.co/' + encodeURIComponent(email);
-    form.target = iframeName;
-    form.style.display = 'none';
-
-    const payload = readablePayload(record);
-    Object.keys(payload).forEach(function(key){
-      const input = document.createElement('input');
-      input.type = 'hidden';
-      input.name = key;
-      input.value = payload[key];
-      form.appendChild(input);
-    });
-
-    document.body.appendChild(form);
-    form.submit();
-    window.setTimeout(function(){
-      form.remove();
-      iframe.remove();
-      resolve(true);
-    }, 1800);
-  });
-}
-
-async function deliverRecord(record){
-  let delivered = false;
-  if(activeConfig.webhookUrl){
-    delivered = await sendToWebhook(activeConfig.webhookUrl, record);
+  if(!error){
+    error = document.createElement('p');
+    error.id = 'formSubmitError';
+    error.className = 'submit-error';
+    card.appendChild(error);
   }
-  if(activeConfig.deliveryEmail){
-    delivered = await sendToEmail(activeConfig.deliveryEmail, record) || delivered;
-  }
-  return delivered;
+  error.textContent = text;
 }
 
 async function submitForm(){
   const data = serializeForm();
   const record = makeRecord(data);
-  saveLocalResponse(record);
-  let delivered = false;
+  const nextBtn = document.getElementById('nextBtn');
+  nextBtn.disabled = true;
+  setFormError('');
   try{
-    delivered = await deliverRecord(record);
+    if(serverMode){
+      await apiRequest('/api/submit', {
+        method: 'POST',
+        body: data
+      });
+    } else {
+      saveLocalResponse(record);
+      throw new Error('mail_not_configured');
+    }
   }catch(e){
     console.error('delivery error', e);
+    nextBtn.disabled = false;
+    const message = e.message === 'mail_not_configured'
+      ? 'Почта ещё не настроена. Сообщите администратору.'
+      : 'Не удалось отправить анкету. Проверьте связь и попробуйте ещё раз.';
+    setFormError(message);
+    return;
   }
   document.getElementById('form-view').style.display='none';
   document.getElementById('success-view').style.display='block';
   const successCard = document.querySelector('#success-view .success');
   const oldError = successCard.querySelector('.submit-error');
   if(oldError) oldError.remove();
-  if(!delivered){
-    const p = document.createElement('p');
-    p.className = 'submit-error';
-    p.textContent = 'Анкета сохранена в этом браузере, но получатель ещё не настроен. Сообщите администратору.';
-    successCard.appendChild(p);
-  }
 }
 
-function showAdmin(){
+async function refreshAdminConfig(){
+  if(!serverMode || !adminAuthenticated) return;
+  const result = await apiRequest('/api/admin/config');
+  activeConfig = Object.assign({}, activeConfig, result.config || {}, {
+    deliveryEmail: result.mailTo || '',
+    mailConfigured: !!result.mailConfigured
+  });
+  applyTextConfig(activeConfig.texts);
+  applyHiddenFields(activeConfig.hiddenFields);
+  hydrateAdminFields();
+  updateClientLink();
+}
+
+async function showAdmin(){
   document.getElementById('form-view').style.display='none';
   document.getElementById('success-view').style.display='none';
   document.getElementById('admin-panel').classList.add('show');
   installDeleteButtons();
+  await refreshAdminConfig();
   hydrateAdminFields();
   updateClientLink();
-  loadAdmin();
+  await loadAdmin();
 }
 
-function requestAdminAccess(){
+async function requestAdminAccess(){
   const pass = prompt('Код доступа:');
-  const expected = (getLocalConfig().adminCode || activeConfig.adminCode || DEFAULT_ADMIN_CODE);
-  if(pass !== expected) return;
-  showAdmin();
+  if(!pass) return;
+  if(serverMode){
+    try{
+      await apiRequest('/api/admin/login', {
+        method: 'POST',
+        body: { code: pass }
+      });
+      adminAuthenticated = true;
+      await showAdmin();
+    }catch(e){
+      alert('Неверный код доступа.');
+    }
+    return;
+  }
+  adminAuthenticated = true;
+  await showAdmin();
 }
 
 const adminToggle = document.getElementById('adminToggle');
@@ -1079,15 +1096,17 @@ document.getElementById('backToForm').addEventListener('click', function(){
 
 function hydrateAdminFields(){
   document.getElementById('deliveryEmail').value = activeConfig.deliveryEmail || '';
-  document.getElementById('webhookUrl').value = activeConfig.webhookUrl || '';
-  document.getElementById('adminCode').value = activeConfig.adminCode || DEFAULT_ADMIN_CODE;
+  const mailStatus = document.getElementById('mailStatus');
+  if(mailStatus){
+    mailStatus.value = activeConfig.mailConfigured ? 'Почта настроена' : 'Почта не настроена';
+  }
 }
 
 function updateClientLink(){
   const el = document.getElementById('clientLink');
   if(!el) return;
   const base = location.href.split('#')[0];
-  el.value = base + '#client=' + encodeConfig(clientSafeConfig());
+  el.value = serverMode ? base : base + '#client=' + encodeConfig(clientSafeConfig());
 }
 
 function flash(id, text){
@@ -1097,13 +1116,20 @@ function flash(id, text){
   window.setTimeout(function(){ el.textContent = ''; }, 3500);
 }
 
-document.getElementById('saveSettings').addEventListener('click', function(){
+document.getElementById('saveSettings').addEventListener('click', async function(){
+  if(serverMode && adminAuthenticated){
+    try{
+      await refreshAdminConfig();
+      flash('settingsStatus', 'Статус обновлён.');
+    }catch(e){
+      flash('settingsStatus', 'Не удалось обновить статус.');
+    }
+    return;
+  }
   saveLocalConfig({
-    deliveryEmail: document.getElementById('deliveryEmail').value.trim(),
-    webhookUrl: document.getElementById('webhookUrl').value.trim(),
-    adminCode: document.getElementById('adminCode').value.trim() || DEFAULT_ADMIN_CODE
+    deliveryEmail: document.getElementById('deliveryEmail').value.trim()
   });
-  flash('settingsStatus', 'Сохранено.');
+  flash('settingsStatus', 'Сохранено локально.');
 });
 
 document.getElementById('copyClientLink').addEventListener('click', async function(){
@@ -1127,19 +1153,27 @@ document.getElementById('deleteQuestionMode').addEventListener('click', function
   setDeleting(!deletingEnabled);
 });
 
-document.getElementById('restoreQuestions').addEventListener('click', function(){
+document.getElementById('restoreQuestions').addEventListener('click', async function(){
   document.querySelectorAll('#brief-form .field').forEach(function(field){
     field.dataset.hiddenByAdmin = 'false';
     field.style.display = '';
   });
-  saveLocalConfig({ hiddenFields: [] });
-  flash('textStatus', 'Все вопросы возвращены.');
+  try{
+    await saveConfig({ hiddenFields: [] });
+    flash('textStatus', 'Все вопросы возвращены.');
+  }catch(e){
+    flash('textStatus', 'Не удалось сохранить изменения.');
+  }
 });
 
-document.getElementById('saveTextConfig').addEventListener('click', function(){
+document.getElementById('saveTextConfig').addEventListener('click', async function(){
   refreshOptionValues();
-  saveLocalConfig({ texts: collectTextConfig() });
-  flash('textStatus', 'Текст анкеты сохранён.');
+  try{
+    await saveConfig({ texts: collectTextConfig() });
+    flash('textStatus', 'Текст анкеты сохранён.');
+  }catch(e){
+    flash('textStatus', 'Не удалось сохранить текст.');
+  }
 });
 
 document.getElementById('downloadConfiguredHtml').addEventListener('click', function(){
@@ -1163,18 +1197,37 @@ document.getElementById('downloadConfiguredHtml').addEventListener('click', func
   flash('textStatus', 'HTML-файл подготовлен.');
 });
 
-function loadAdmin(){
+async function loadAdmin(){
   const listEl = document.getElementById('adminList');
-  const records = getLocalResponses();
+  let records = getLocalResponses();
+  if(serverMode && adminAuthenticated){
+    try{
+      const result = await apiRequest('/api/admin/responses');
+      records = result.responses || [];
+    }catch(e){
+      listEl.innerHTML = '<p class="empty-state">Не удалось загрузить ответы с сервера.</p>';
+      return;
+    }
+  }
   if(records.length===0){
-    listEl.innerHTML = '<p class="empty-state">Пока нет локальных тестовых ответов.</p>';
+    listEl.innerHTML = '<p class="empty-state">Пока нет ответов.</p>';
     return;
   }
   listEl.innerHTML = records.map(renderRecord).join('');
 }
 
-document.getElementById('exportLocalResponses').addEventListener('click', function(){
-  const blob = new Blob([JSON.stringify(getLocalResponses(), null, 2)], {type:'application/json;charset=utf-8'});
+document.getElementById('exportLocalResponses').addEventListener('click', async function(){
+  let records = getLocalResponses();
+  if(serverMode && adminAuthenticated){
+    try{
+      const result = await apiRequest('/api/admin/responses');
+      records = result.responses || [];
+    }catch(e){
+      flash('settingsStatus', 'Не удалось скачать ответы.');
+      return;
+    }
+  }
+  const blob = new Blob([JSON.stringify(records, null, 2)], {type:'application/json;charset=utf-8'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -1185,25 +1238,36 @@ document.getElementById('exportLocalResponses').addEventListener('click', functi
   URL.revokeObjectURL(url);
 });
 
-document.getElementById('clearLocalResponses').addEventListener('click', function(){
-  if(!confirm('Очистить локальные тестовые ответы в этом браузере?')) return;
+document.getElementById('clearLocalResponses').addEventListener('click', async function(){
+  if(!confirm('Очистить список ответов?')) return;
+  if(serverMode && adminAuthenticated){
+    try{
+      await apiRequest('/api/admin/responses', { method: 'DELETE' });
+      await loadAdmin();
+    }catch(e){
+      flash('settingsStatus', 'Не удалось очистить ответы.');
+    }
+    return;
+  }
   localStorage.removeItem(BRIEF_RESPONSES_KEY);
-  loadAdmin();
+  await loadAdmin();
 });
 
 function renderRecord(r){
+  const payload = r.payload || r;
   const date = new Date(r.submittedAt).toLocaleString('ru-RU');
   const rows = Object.entries(featLabels).map(function(entry){
     const k = entry[0];
     const label = entry[1];
-    const val = r[k];
+    const val = payload[k];
     if(!val) return '';
     return '<dt>' + escapeHtml(label) + '</dt><dd>' + escapeHtml(val) + '</dd>';
   }).join('');
-  const feats = (r.features && r.features.length)
-    ? '<dt>Выбранные доп. функции</dt><ul class="features-list">' + r.features.map(function(f){ return '<li>• ' + escapeHtml(f) + '</li>'; }).join('') + '</ul>'
+  const features = payload.features || [];
+  const feats = (features && features.length)
+    ? '<dt>Выбранные доп. функции</dt><ul class="features-list">' + features.map(function(f){ return '<li>• ' + escapeHtml(f) + '</li>'; }).join('') + '</ul>'
     : '';
-  return '<div class="resp-card"><h3>' + escapeHtml(r.clinicName) + '</h3><div class="resp-meta">' + date + ' · ' + escapeHtml(r.contactName||'') + ' · ' + escapeHtml(r.contactPhone||'') + '</div><dl>' + rows + feats + '</dl></div>';
+  return '<div class="resp-card"><h3>' + escapeHtml(r.clinicName || payload.q1_name || 'Без названия') + '</h3><div class="resp-meta">' + date + ' · ' + escapeHtml(payload.contactName||'') + ' · ' + escapeHtml(payload.contactPhone||'') + '</div><dl>' + rows + feats + '</dl></div>';
 }
 
 function escapeHtml(s){
@@ -1212,11 +1276,16 @@ function escapeHtml(s){
   });
 }
 
-baselineTextConfig = snapshotTextConfig();
-applyTextConfig(activeConfig.texts);
-applyHiddenFields(activeConfig.hiddenFields);
-showStep(0);
-updateClientLink();
+async function initializeApp(){
+  baselineTextConfig = snapshotTextConfig();
+  await loadServerConfig();
+  applyTextConfig(activeConfig.texts);
+  applyHiddenFields(activeConfig.hiddenFields);
+  showStep(0);
+  updateClientLink();
+}
+
+initializeApp();
 
 </script>
 
