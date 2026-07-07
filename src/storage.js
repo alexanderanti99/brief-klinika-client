@@ -15,7 +15,9 @@ function normalizeConfig(config) {
       ? config.texts
       : {},
     hiddenFields: Array.isArray(config?.hiddenFields) ? config.hiddenFields : [],
-    formSchema: config?.formSchema && Array.isArray(config.formSchema.sections)
+    formSchema: config?.formSchema
+      && config.formSchema.version === defaultFormSchema.version
+      && Array.isArray(config.formSchema.sections)
       ? config.formSchema
       : defaultFormSchema
   };

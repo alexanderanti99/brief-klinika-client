@@ -80,13 +80,42 @@ test('public config exposes editable content without leaking secrets', async () 
 
   assert.equal(response.body.mailConfigured, true);
   assert.ok(response.body.formSchema);
-  assert.ok(response.body.formSchema.sections.length > 0);
+  assert.equal(response.body.formSchema.version, 2);
+  assert.equal(response.body.formSchema.sections.length, 2);
+  assert.equal(response.body.formSchema.sections[0].title, 'Кратко о вас');
+  assert.equal(response.body.formSchema.sections[1].title, 'Данные для сайта');
   assert.deepEqual(response.body.texts, { 'label.q::0': 'Client name' });
   assert.deepEqual(response.body.hiddenFields, ['q3_colors::4']);
   assert.equal(Object.hasOwn(response.body, 'adminCode'), false);
   assert.equal(Object.hasOwn(response.body, 'SMTP_PASS'), false);
   assert.equal(Object.hasOwn(response.body, 'TELEGRAM_BOT_TOKEN'), false);
   assert.equal(Object.hasOwn(response.body, 'sessionSecret'), false);
+});
+
+test('public config migrates old form schema to current default', async () => {
+  const app = createApp({
+    env: baseEnv(),
+    storage: createFakeStorage({
+      formSchema: {
+        version: 1,
+        sections: [
+          {
+            id: 'old',
+            eyebrow: 'Old',
+            title: 'Old section',
+            fields: [{ id: 'old_field', type: 'text', label: 'Old field' }]
+          }
+        ]
+      }
+    }),
+    mailer: { sendBrief: async () => ({ accepted: ['owner@example.com'] }) }
+  });
+
+  const response = await request(app).get('/api/config').expect(200);
+
+  assert.equal(response.body.formSchema.version, 2);
+  assert.equal(response.body.formSchema.sections.length, 2);
+  assert.equal(response.body.formSchema.sections[0].title, 'Кратко о вас');
 });
 
 test('admin can save form schema with a new section and field', async () => {
@@ -98,7 +127,7 @@ test('admin can save form schema with a new section and field', async () => {
   });
   const agent = request.agent(app);
   const formSchema = {
-    version: 1,
+    version: 2,
     sections: [
       {
         id: 'custom',
@@ -126,7 +155,7 @@ test('admin can save form schema with a new section and field', async () => {
 test('submission validates required fields from saved form schema', async () => {
   const storage = createFakeStorage({
     formSchema: {
-      version: 1,
+      version: 2,
       sections: [
         {
           id: 'custom',
@@ -157,7 +186,7 @@ test('submission validates required fields from saved form schema', async () => 
 test('conditional required fields are required only when visible', async () => {
   const storage = createFakeStorage({
     formSchema: {
-      version: 1,
+      version: 2,
       sections: [
         {
           id: 'custom',
@@ -193,7 +222,7 @@ test('conditional required fields are required only when visible', async () => {
 test('submission stores labels for custom form fields', async () => {
   const storage = createFakeStorage({
     formSchema: {
-      version: 1,
+      version: 2,
       sections: [
         {
           id: 'custom',

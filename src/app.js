@@ -84,7 +84,9 @@ function normalizeField(field, index) {
 }
 
 function normalizeFormSchema(schema) {
-  const source = schema && Array.isArray(schema.sections) ? schema : defaultFormSchema;
+  const source = schema && schema.version === defaultFormSchema.version && Array.isArray(schema.sections)
+    ? schema
+    : defaultFormSchema;
   const sections = source.sections
     .map((section, sectionIndex) => ({
       id: normalizeId(section?.id, `section_${sectionIndex + 1}`),
@@ -97,7 +99,7 @@ function normalizeFormSchema(schema) {
     .filter((section) => section.fields.length > 0);
 
   return {
-    version: 1,
+    version: defaultFormSchema.version,
     sections: sections.length > 0 ? sections : clone(defaultFormSchema.sections)
   };
 }

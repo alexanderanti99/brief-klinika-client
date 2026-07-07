@@ -763,6 +763,7 @@
 <script>
 const BRIEF_CONFIG_KEY = 'briefAdminConfig:v2';
 const BRIEF_RESPONSES_KEY = 'briefLocalResponses:v2';
+const FORM_SCHEMA_VERSION = 2;
 const DEFAULT_CONFIG = {
   texts: {},
   hiddenFields: [],
@@ -918,7 +919,7 @@ function normalizeClientSchema(schema){
     };
   }).filter(function(section){ return section.fields.length > 0; });
   if(!sections.length) return inferSchemaFromCurrentForm();
-  return { version: Number(schema.version || 1), sections: sections };
+  return { version: FORM_SCHEMA_VERSION, sections: sections };
 }
 
 function inferSchemaFromCurrentForm(){
@@ -936,7 +937,7 @@ function inferSchemaFromCurrentForm(){
       })
     };
   }).filter(function(section){ return section.fields.length > 0; });
-  return sections.length ? { version: 1, sections: sections } : null;
+  return sections.length ? { version: FORM_SCHEMA_VERSION, sections: sections } : null;
 }
 
 function inferFieldsFromDomField(field, sectionIndex, fieldIndex){
@@ -1616,7 +1617,7 @@ function collectSchemaFromEditor(){
     };
     return section;
   });
-  return makeUniqueSchemaIds(normalizeClientSchema({ version: 1, sections: sections }));
+  return makeUniqueSchemaIds(normalizeClientSchema({ version: FORM_SCHEMA_VERSION, sections: sections }));
 }
 
 function makeUniqueSchemaIds(schema){
@@ -1665,7 +1666,7 @@ if(schemaEditor){
     const btn = event.target.closest('[data-schema-action]');
     if(!btn) return;
     const action = btn.dataset.schemaAction;
-    const schema = collectSchemaFromEditor() || { version: 1, sections: [] };
+    const schema = collectSchemaFromEditor() || { version: FORM_SCHEMA_VERSION, sections: [] };
     const sectionEl = btn.closest('.schema-section');
     const sectionIndex = sectionEl ? Number(sectionEl.dataset.sectionIndex) : -1;
     const fieldEl = btn.closest('.schema-field');
@@ -1693,7 +1694,7 @@ if(schemaEditor){
 }
 
 document.getElementById('addSectionBtn').addEventListener('click', function(){
-  const schema = collectSchemaFromEditor() || { version: 1, sections: [] };
+  const schema = collectSchemaFromEditor() || { version: FORM_SCHEMA_VERSION, sections: [] };
   schema.sections.push({
     id: 'new_section_' + Date.now(),
     eyebrow: 'Новый раздел',
