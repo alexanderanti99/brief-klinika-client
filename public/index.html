@@ -264,25 +264,58 @@
   .schema-editor{
     display:flex;
     flex-direction:column;
-    gap:14px;
+    gap:18px;
   }
   .schema-section{
     border:1px solid var(--line);
-    border-radius:10px;
-    padding:14px;
-    background:rgba(255,255,255,.58);
+    border-radius:14px;
+    padding:18px;
+    background:#fff;
+    box-shadow:0 10px 26px rgba(37,31,24,.06);
+    position:relative;
   }
-  .schema-row,
-  .schema-field-grid{
+  .schema-section:before{
+    content:'';
+    position:absolute;
+    left:0;
+    top:0;
+    bottom:0;
+    width:5px;
+    border-radius:14px 0 0 14px;
+    background:var(--accent);
+  }
+  .schema-section-head{
     display:grid;
-    grid-template-columns:repeat(2,minmax(0,1fr));
     gap:10px;
-    margin-bottom:10px;
+    margin-bottom:16px;
+  }
+  .schema-section-title{
+    font-family:'Fraunces', serif;
+    font-size:22px;
+    font-weight:600;
+  }
+  .schema-section-eyebrow{
+    max-width:220px;
+    font-size:12px;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    color:var(--accent);
   }
   .schema-field{
-    border-top:1px solid var(--line);
-    padding-top:12px;
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:14px;
     margin-top:12px;
+    background:#FCFBF9;
+  }
+  .schema-field-top{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) 190px;
+    gap:10px;
+    align-items:start;
+  }
+  .schema-question-input{
+    font-weight:700;
   }
   .schema-editor label{
     display:block;
@@ -302,9 +335,30 @@
     padding:10px 12px;
     background:#fff;
   }
+  .schema-editor input[type="hidden"]{
+    display:none;
+  }
   .schema-editor textarea{
     min-height:78px;
     resize:vertical;
+  }
+  .schema-details{
+    margin-top:10px;
+  }
+  .schema-details summary{
+    cursor:pointer;
+    color:var(--accent);
+    font-weight:700;
+    font-size:13px;
+    margin-bottom:10px;
+  }
+  .schema-extra-grid{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:10px;
+  }
+  .schema-options-box{
+    margin-top:10px;
   }
   .schema-check{
     display:flex;
@@ -312,7 +366,8 @@
     gap:8px;
     font-size:13px;
     color:var(--ink);
-    margin-top:24px;
+    margin-top:10px;
+    user-select:none;
   }
   .schema-check input{width:auto;}
   .schema-mini-actions{
@@ -321,6 +376,36 @@
     gap:8px;
     margin-top:10px;
   }
+  .schema-add-row{
+    display:flex;
+    justify-content:center;
+    padding:14px 0 0;
+  }
+  .schema-plus{
+    width:38px;
+    height:38px;
+    border-radius:50%;
+    border:1px solid var(--line);
+    background:#fff;
+    color:var(--accent);
+    font-size:24px;
+    line-height:1;
+    cursor:pointer;
+    box-shadow:0 8px 18px rgba(37,31,24,.08);
+  }
+  .schema-plus:hover{
+    border-color:var(--accent);
+    background:var(--accent-soft);
+  }
+  .schema-delete{
+    border:0;
+    background:transparent;
+    color:var(--ink-soft);
+    cursor:pointer;
+    font-weight:700;
+    padding:6px 0;
+  }
+  .schema-delete:hover{color:var(--error);}
   .admin-actions{
     display:flex;
     flex-wrap:wrap;
@@ -382,8 +467,8 @@
     }
   }
   @media (max-width: 640px){
-    .schema-row,
-    .schema-field-grid{
+    .schema-field-top,
+    .schema-extra-grid{
       grid-template-columns:1fr;
     }
     .schema-check{
@@ -628,8 +713,8 @@
       </div>
 
       <div class="admin-card">
-        <h2>Редактирование анкеты</h2>
-        <p>Нажмите «Редактировать текст», меняйте заголовки, вопросы, подсказки и варианты прямо на странице. Чтобы убрать вопрос, выделите его текст и замените на короткий прочерк или удалите лишний блок в скачанном HTML.</p>
+        <h2>Быстрые действия</h2>
+        <p>Основное редактирование вопросов находится ниже. Этот блок оставлен для просмотра, скачивания HTML и возврата скрытых вопросов.</p>
         <div class="admin-actions">
           <button class="btn-primary" id="toggleEdit" type="button">Редактировать текст</button>
           <button class="btn-ghost" id="saveTextConfig" type="button">Сохранить текст</button>
@@ -643,10 +728,10 @@
 
     <div class="admin-card">
       <h2>Разделы и вопросы</h2>
-      <p>Здесь можно менять структуру анкеты: добавлять и удалять разделы, вопросы, варианты ответов и обязательные поля.</p>
+      <p>Редактируйте анкету как форму: меняйте заголовки, добавляйте вопросы через плюс, выбирайте тип ответа и варианты. Вид клиентской анкеты останется прежним.</p>
       <div class="schema-editor" id="schemaEditor"></div>
       <div class="admin-actions" style="margin-top:16px;">
-        <button class="btn-ghost" id="addSectionBtn" type="button">Добавить раздел</button>
+        <button class="btn-ghost" id="addSectionBtn" type="button">+ Раздел</button>
         <button class="btn-primary" id="saveSchemaBtn" type="button">Сохранить анкету</button>
       </div>
       <div class="admin-status" id="schemaStatus"></div>
@@ -807,7 +892,7 @@ async function loadServerConfig(){
 }
 
 function normalizeClientSchema(schema){
-  if(!schema || !Array.isArray(schema.sections)) return null;
+  if(!schema || !Array.isArray(schema.sections)) return inferSchemaFromCurrentForm();
   const sections = schema.sections.map(function(section, sectionIndex){
     const fields = Array.isArray(section.fields) ? section.fields : [];
     return {
@@ -831,7 +916,87 @@ function normalizeClientSchema(schema){
       })
     };
   }).filter(function(section){ return section.fields.length > 0; });
+  if(!sections.length) return inferSchemaFromCurrentForm();
   return { version: Number(schema.version || 1), sections: sections };
+}
+
+function inferSchemaFromCurrentForm(){
+  const form = document.getElementById('brief-form');
+  if(!form) return null;
+  const domSteps = Array.from(form.querySelectorAll('.step'));
+  if(!domSteps.length) return null;
+  const sections = domSteps.map(function(step, sectionIndex){
+    return {
+      id: 'section_' + (sectionIndex + 1),
+      eyebrow: textOf(step.querySelector('.eyebrow')) || ('Раздел ' + (sectionIndex + 1)),
+      title: textOf(step.querySelector('h2')) || ('Раздел ' + (sectionIndex + 1)),
+      fields: Array.from(step.querySelectorAll('.field')).flatMap(function(field, fieldIndex){
+        return inferFieldsFromDomField(field, sectionIndex, fieldIndex);
+      })
+    };
+  }).filter(function(section){ return section.fields.length > 0; });
+  return sections.length ? { version: 1, sections: sections } : null;
+}
+
+function inferFieldsFromDomField(field, sectionIndex, fieldIndex){
+  const result = [];
+  const label = cleanQuestionLabel(textOf(field.querySelector('label.q')));
+  const hint = textOf(field.querySelector('.hint'));
+  const optionInputs = Array.from(field.querySelectorAll('.opt input[name]'));
+  if(optionInputs.length){
+    const first = optionInputs[0];
+    result.push({
+      id: first.name === 'feat' ? 'features' : safeId(first.name || ('field_' + sectionIndex + '_' + fieldIndex)),
+      type: first.type === 'checkbox' ? 'checkbox' : 'radio',
+      label: label || featLabels[first.name] || first.name,
+      hint: hint,
+      placeholder: '',
+      required: optionInputs.some(function(input){ return input.required; }),
+      options: optionInputs.map(function(input){
+        const option = input.closest('.opt');
+        return input.value || textOf(option ? option.querySelector('.opt-text') : null);
+      }).filter(Boolean),
+      showWhen: null
+    });
+  } else {
+    const control = field.querySelector(':scope > input[name], :scope > textarea[name]');
+    if(control){
+      result.push({
+        id: safeId(control.name),
+        type: control.tagName.toLowerCase() === 'textarea' ? 'textarea' : 'text',
+        label: label || featLabels[control.name] || control.name,
+        hint: hint,
+        placeholder: control.getAttribute('placeholder') || '',
+        required: !!control.required,
+        options: [],
+        showWhen: null
+      });
+    }
+  }
+  field.querySelectorAll('.conditional[data-show-if]').forEach(function(conditional){
+    const control = conditional.querySelector('input[name], textarea[name]');
+    if(!control) return;
+    const parts = conditional.getAttribute('data-show-if').split('=');
+    result.push({
+      id: safeId(control.name),
+      type: control.tagName.toLowerCase() === 'textarea' ? 'textarea' : 'text',
+      label: featLabels[control.name] || control.getAttribute('placeholder') || control.name,
+      hint: '',
+      placeholder: control.getAttribute('placeholder') || '',
+      required: !!control.required,
+      options: [],
+      showWhen: { fieldId: safeId(parts[0]), value: parts.slice(1).join('=') }
+    });
+  });
+  return result;
+}
+
+function textOf(node){
+  return node ? node.textContent.replace(/\s+/g, ' ').trim() : '';
+}
+
+function cleanQuestionLabel(value){
+  return String(value || '').replace(/\*$/, '').trim();
 }
 
 function safeId(value){
@@ -1378,17 +1543,19 @@ function renderSchemaEditor(){
   activeConfig.formSchema = schema;
   editor.innerHTML = schema.sections.map(function(section, sectionIndex){
     return '<div class="schema-section" data-section-index="' + sectionIndex + '">' +
-      '<div class="schema-row">' +
-        '<div><label>Метка раздела</label><input type="text" data-schema-section="eyebrow" value="' + escapeHtml(section.eyebrow) + '"></div>' +
-        '<div><label>Заголовок раздела</label><input type="text" data-schema-section="title" value="' + escapeHtml(section.title) + '"></div>' +
+      '<input type="hidden" data-schema-section="id" value="' + escapeHtml(section.id) + '">' +
+      '<div class="schema-section-head">' +
+        '<input class="schema-section-eyebrow" type="text" data-schema-section="eyebrow" aria-label="Метка раздела" value="' + escapeHtml(section.eyebrow) + '">' +
+        '<input class="schema-section-title" type="text" data-schema-section="title" aria-label="Заголовок раздела" value="' + escapeHtml(section.title) + '">' +
       '</div>' +
-      '<div><label>ID раздела</label><input type="text" data-schema-section="id" value="' + escapeHtml(section.id) + '"></div>' +
       section.fields.map(function(field, fieldIndex){
         return renderSchemaEditorField(field, fieldIndex);
       }).join('') +
+      '<div class="schema-add-row">' +
+        '<button class="schema-plus" type="button" data-schema-action="add-field" aria-label="Добавить вопрос">+</button>' +
+      '</div>' +
       '<div class="schema-mini-actions">' +
-        '<button class="btn-ghost" type="button" data-schema-action="add-field">Добавить вопрос</button>' +
-        '<button class="btn-ghost" type="button" data-schema-action="delete-section">Удалить раздел</button>' +
+        '<button class="schema-delete" type="button" data-schema-action="delete-section">Удалить раздел</button>' +
       '</div>' +
     '</div>';
   }).join('');
@@ -1398,24 +1565,30 @@ function renderSchemaEditorField(field, fieldIndex){
   const options = (field.options || []).join('\n');
   const showField = field.showWhen ? field.showWhen.fieldId : '';
   const showValue = field.showWhen ? field.showWhen.value : '';
+  const usesOptions = field.type === 'radio' || field.type === 'checkbox';
   return '<div class="schema-field" data-field-index="' + fieldIndex + '">' +
-    '<div class="schema-field-grid">' +
-      '<div><label>ID вопроса</label><input type="text" data-schema-field="id" value="' + escapeHtml(field.id) + '"></div>' +
-      '<div><label>Тип поля</label><select data-schema-field="type">' +
-        '<option value="text"' + (field.type === 'text' ? ' selected' : '') + '>Текст</option>' +
+    '<input type="hidden" data-schema-field="id" value="' + escapeHtml(field.id) + '">' +
+    '<input type="hidden" data-schema-field="showWhenField" value="' + escapeHtml(showField) + '">' +
+    '<input type="hidden" data-schema-field="showWhenValue" value="' + escapeHtml(showValue) + '">' +
+    '<div class="schema-field-top">' +
+      '<div><label>Вопрос</label><input class="schema-question-input" type="text" data-schema-field="label" value="' + escapeHtml(field.label) + '"></div>' +
+      '<div><label>Тип ответа</label><select data-schema-field="type">' +
+        '<option value="text"' + (field.type === 'text' ? ' selected' : '') + '>Короткий текст</option>' +
         '<option value="textarea"' + (field.type === 'textarea' ? ' selected' : '') + '>Большой текст</option>' +
         '<option value="radio"' + (field.type === 'radio' ? ' selected' : '') + '>Один вариант</option>' +
         '<option value="checkbox"' + (field.type === 'checkbox' ? ' selected' : '') + '>Несколько вариантов</option>' +
       '</select></div>' +
-      '<div><label>Вопрос</label><input type="text" data-schema-field="label" value="' + escapeHtml(field.label) + '"></div>' +
-      '<label class="schema-check"><input type="checkbox" data-schema-field="required"' + (field.required ? ' checked' : '') + '>Обязательный</label>' +
-      '<div><label>Подсказка</label><textarea data-schema-field="hint">' + escapeHtml(field.hint || '') + '</textarea></div>' +
-      '<div><label>Плейсхолдер</label><textarea data-schema-field="placeholder">' + escapeHtml(field.placeholder || '') + '</textarea></div>' +
-      '<div><label>Варианты ответа, каждый с новой строки</label><textarea data-schema-field="options">' + escapeHtml(options) + '</textarea></div>' +
-      '<div><label>Показывать после поля ID</label><input type="text" data-schema-field="showWhenField" value="' + escapeHtml(showField) + '"></div>' +
-      '<div><label>Показывать при значении</label><input type="text" data-schema-field="showWhenValue" value="' + escapeHtml(showValue) + '"></div>' +
     '</div>' +
-    '<div class="schema-mini-actions"><button class="btn-ghost" type="button" data-schema-action="delete-field">Удалить вопрос</button></div>' +
+    '<div class="schema-options-box" style="' + (usesOptions ? '' : 'display:none;') + '"><label>Варианты ответа, каждый с новой строки</label><textarea data-schema-field="options">' + escapeHtml(options) + '</textarea></div>' +
+    '<details class="schema-details">' +
+      '<summary>Подсказка и плейсхолдер</summary>' +
+      '<div class="schema-extra-grid">' +
+        '<div><label>Подсказка под вопросом</label><textarea data-schema-field="hint">' + escapeHtml(field.hint || '') + '</textarea></div>' +
+        '<div><label>Плейсхолдер внутри поля</label><textarea data-schema-field="placeholder">' + escapeHtml(field.placeholder || '') + '</textarea></div>' +
+      '</div>' +
+    '</details>' +
+    '<label class="schema-check"><input type="checkbox" data-schema-field="required"' + (field.required ? ' checked' : '') + '>Обязательный вопрос</label>' +
+    '<div class="schema-mini-actions"><button class="schema-delete" type="button" data-schema-action="delete-field">Удалить вопрос</button></div>' +
   '</div>';
 }
 
@@ -1480,6 +1653,16 @@ function valueFrom(root, selector){
 
 const schemaEditor = document.getElementById('schemaEditor');
 if(schemaEditor){
+  schemaEditor.addEventListener('change', function(event){
+    const select = event.target.closest('[data-schema-field="type"]');
+    if(!select) return;
+    const field = select.closest('.schema-field');
+    const optionsBox = field ? field.querySelector('.schema-options-box') : null;
+    if(optionsBox){
+      optionsBox.style.display = (select.value === 'radio' || select.value === 'checkbox') ? '' : 'none';
+    }
+  });
+
   schemaEditor.addEventListener('click', function(event){
     const btn = event.target.closest('[data-schema-action]');
     if(!btn) return;
