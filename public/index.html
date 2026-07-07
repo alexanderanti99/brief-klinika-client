@@ -780,6 +780,7 @@ let activeConfig = loadConfig();
 let baselineTextConfig = null;
 let serverMode = false;
 let adminAuthenticated = false;
+let appReadyPromise = null;
 
 const featLabels = {
   contactName: "Имя / должность",
@@ -1415,6 +1416,7 @@ async function showAdmin(){
 }
 
 async function requestAdminAccess(){
+  if(appReadyPromise) await appReadyPromise;
   const pass = prompt('Код доступа:');
   if(!pass) return;
   if(serverMode){
@@ -1437,10 +1439,6 @@ async function requestAdminAccess(){
 const adminToggle = document.getElementById('adminToggle');
 if(adminToggle){
   adminToggle.addEventListener('click', requestAdminAccess);
-}
-
-if(window.location.hash === '#admin'){
-  window.setTimeout(requestAdminAccess, 150);
 }
 
 document.getElementById('backToForm').addEventListener('click', function(){
@@ -1720,7 +1718,12 @@ document.getElementById('saveSchemaBtn').addEventListener('click', async functio
     renderSchemaEditor();
     flash('schemaStatus', 'Анкета сохранена.');
   }catch(e){
-    flash('schemaStatus', 'Не удалось сохранить анкету.');
+    if(e.status === 401){
+      adminAuthenticated = false;
+      flash('schemaStatus', 'Сессия админки истекла. Нажмите "Вернуться к форме" и войдите в админку заново.');
+      return;
+    }
+    flash('schemaStatus', 'Не удалось сохранить анкету. Попробуйте обновить страницу и войти заново.');
   }
 });
 
@@ -1837,7 +1840,12 @@ async function initializeApp(){
   updateClientLink();
 }
 
-initializeApp();
+appReadyPromise = initializeApp();
+appReadyPromise.then(function(){
+  if(window.location.hash === '#admin'){
+    requestAdminAccess();
+  }
+});
 
 </script>
 
