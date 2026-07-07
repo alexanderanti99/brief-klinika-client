@@ -187,10 +187,7 @@ export function createApp(options = {}) {
     const record = makeRecord(payload);
     const saved = await storage.createResponse(record);
     if (!mailConfigured()) {
-      res.status(503).json({
-        error: 'mail_not_configured',
-        responseId: saved.id || null
-      });
+      res.json({ ok: true, delivered: false, responseId: saved.id || null });
       return;
     }
 

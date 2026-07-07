@@ -23,13 +23,18 @@ Set these variables on the app service:
 
 - `ADMIN_CODE` - code for `#admin`.
 - `SESSION_SECRET` - long random string for admin cookies.
-- `MAIL_TO` - where completed briefs are sent.
-- `MAIL_FROM` - sender address. Optional if it matches `SMTP_USER`.
-- `SMTP_HOST` - SMTP server.
-- `SMTP_PORT` - `465` or `587`.
-- `SMTP_USER` - SMTP login.
-- `SMTP_PASS` - SMTP password or app password.
-- `SMTP_SECURE` - `true` for port `465`, usually `false` for `587`.
 - `DATABASE_URL` - recommended Railway Postgres reference variable.
 
 Without `DATABASE_URL`, the app uses a local JSON file. That is fine for local development, but Railway production should use Postgres so admin edits and responses survive redeploys.
+
+Email delivery is optional. The form always saves responses in the admin panel when storage is configured. If you also want email notifications, add these SMTP variables:
+
+- `MAIL_TO` - where completed briefs are sent.
+- `MAIL_FROM` - sender address. Optional; defaults to `SMTP_USER`.
+- `SMTP_HOST` - SMTP server.
+- `SMTP_PORT` - `465` or `587`.
+- `SMTP_USER` - SMTP login for the server's sender mailbox.
+- `SMTP_PASS` - SMTP password or app password for that sender mailbox.
+- `SMTP_SECURE` - `true` for port `465`, usually `false` for `587`.
+
+The client filling out the brief never enters email credentials. SMTP variables belong to the server-side sender mailbox only.

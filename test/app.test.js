@@ -174,3 +174,40 @@ test('valid submission is stored and sent by email', async () => {
   assert.equal(sent.length, 1);
   assert.equal(sent[0].payload.contactName, 'Alexander');
 });
+
+test('valid submission is stored without email when SMTP is not configured', async () => {
+  const storage = createFakeStorage();
+  const app = createApp({
+    env: {
+      ADMIN_CODE: '1974',
+      SESSION_SECRET: 'test-session-secret'
+    },
+    storage,
+    mailer: {
+      isConfigured() {
+        return false;
+      },
+      async sendBrief() {
+        throw new Error('should not send email');
+      }
+    }
+  });
+
+  const response = await request(app)
+    .post('/api/submit')
+    .send({
+      contactName: 'Alexander',
+      contactPhone: '@alex',
+      q1_name: 'Smile Clinic',
+      q2_logo: 'Да, есть',
+      q4_type: 'Сайт-визитка',
+      q5_services: 'Cleaning - 5000',
+      q10_contacts: 'Moscow'
+    })
+    .expect(200);
+
+  assert.equal(response.body.ok, true);
+  assert.equal(response.body.delivered, false);
+  assert.equal(storage.state.responses.length, 1);
+  assert.equal(storage.state.responses[0].clinicName, 'Smile Clinic');
+});
