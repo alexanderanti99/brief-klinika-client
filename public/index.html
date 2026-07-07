@@ -330,6 +330,11 @@
   .schema-drag:hover{ color:var(--ink); border-color:var(--accent); }
   .schema-drag:active{ cursor:grabbing; }
   .schema-field.dragging{ opacity:.45; outline:2px dashed var(--accent); }
+  #brief-form{ visibility:hidden; }
+  #brief-form.form-ready{ visibility:visible; }
+  .schema-condition-row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:6px; }
+  .schema-condition-row select{ flex:1; min-width:140px; }
+  .schema-condition-eq{ font-weight:700; color:var(--ink-soft); }
   .schema-field-top{
     display:grid;
     grid-template-columns:minmax(0,1fr) 190px;
@@ -1570,7 +1575,7 @@ function renderSchemaEditor(){
         '<input class="schema-section-title" type="text" data-schema-section="title" aria-label="Заголовок раздела" value="' + escapeHtml(section.title) + '">' +
       '</div>' +
       section.fields.map(function(field, fieldIndex){
-        return renderSchemaEditorField(field, fieldIndex);
+        return renderSchemaEditorField(field, fieldIndex, section);
       }).join('') +
       '<div class="schema-add-row">' +
         '<button class="schema-plus" type="button" data-schema-action="add-field" aria-label="Добавить вопрос">+</button>' +
@@ -1582,16 +1587,32 @@ function renderSchemaEditor(){
   }).join('');
 }
 
-function renderSchemaEditorField(field, fieldIndex){
+function renderSchemaEditorField(field, fieldIndex, section){
   const options = (field.options || []).join('\n');
   const showField = field.showWhen ? field.showWhen.fieldId : '';
   const showValue = field.showWhen ? field.showWhen.value : '';
   const usesOptions = field.type === 'radio' || field.type === 'checkbox';
+  const triggerFields = (section && Array.isArray(section.fields) ? section.fields : []).filter(function(f){
+    return f.id !== field.id && (f.type === 'radio' || f.type === 'checkbox') && (f.options || []).length;
+  });
+  const triggerField = triggerFields.find(function(f){ return f.id === showField; });
+  const conditionValues = triggerField ? (triggerField.options || []).slice() : [];
+  if(showValue && conditionValues.indexOf(showValue) === -1) conditionValues.unshift(showValue);
+  const triggerSelect = '<select data-schema-field="showWhenField">' +
+    '<option value="">— показывать всегда —</option>' +
+    triggerFields.map(function(f){
+      return '<option value="' + escapeHtml(f.id) + '"' + (showField === f.id ? ' selected' : '') + '>' + escapeHtml(f.label) + '</option>';
+    }).join('') +
+    '</select>';
+  const valueSelect = '<select data-schema-field="showWhenValue"' + (triggerField ? '' : ' disabled') + '>' +
+    '<option value="">— выберите ответ —</option>' +
+    conditionValues.map(function(o){
+      return '<option value="' + escapeHtml(o) + '"' + (showValue === o ? ' selected' : '') + '>' + escapeHtml(o) + '</option>';
+    }).join('') +
+    '</select>';
   return '<div class="schema-field" data-field-index="' + fieldIndex + '">' +
     '<div class="schema-field-drag-row"><button class="schema-drag" type="button" draggable="true" data-schema-drag aria-label="Перетащите, чтобы изменить порядок вопроса" title="Перетащите, чтобы изменить порядок вопроса">⠿ перетащить</button></div>' +
     '<input type="hidden" data-schema-field="id" value="' + escapeHtml(field.id) + '">' +
-    '<input type="hidden" data-schema-field="showWhenField" value="' + escapeHtml(showField) + '">' +
-    '<input type="hidden" data-schema-field="showWhenValue" value="' + escapeHtml(showValue) + '">' +
     '<div class="schema-field-top">' +
       '<div><label>Вопрос</label><input class="schema-question-input" type="text" data-schema-field="label" value="' + escapeHtml(field.label) + '"></div>' +
       '<div><label>Тип ответа</label><select data-schema-field="type">' +
@@ -1607,6 +1628,14 @@ function renderSchemaEditorField(field, fieldIndex){
       '<div class="schema-extra-grid">' +
         '<div><label>Подсказка под вопросом</label><textarea data-schema-field="hint">' + escapeHtml(field.hint || '') + '</textarea></div>' +
         '<div><label>Плейсхолдер внутри поля</label><textarea data-schema-field="placeholder">' + escapeHtml(field.placeholder || '') + '</textarea></div>' +
+      '</div>' +
+    '</details>' +
+    '<details class="schema-details"' + (showField ? ' open' : '') + '>' +
+      '<summary>Показывать этот вопрос только по условию</summary>' +
+      '<div class="schema-condition">' +
+        '<label>Показывать, только если в другом вопросе выбран определённый ответ:</label>' +
+        '<div class="schema-condition-row">' + triggerSelect + '<span class="schema-condition-eq">равен</span>' + valueSelect + '</div>' +
+        '<div class="hint" style="margin-top:6px;">Оставьте «показывать всегда», если вопрос нужен всем. Условие работает с вопросами типа «Один вариант» или «Несколько вариантов» — например, показать это поле только когда выбрано «Другое».</div>' +
       '</div>' +
     '</details>' +
     '<label class="schema-check"><input type="checkbox" data-schema-field="required"' + (field.required ? ' checked' : '') + '>Обязательный вопрос</label>' +
@@ -1673,15 +1702,47 @@ function valueFrom(root, selector){
   return el ? el.value.trim() : '';
 }
 
+function updateConditionValueSelect(triggerSelect){
+  const fieldCard = triggerSelect.closest('.schema-field');
+  const sectionEl = fieldCard ? fieldCard.closest('.schema-section') : null;
+  const valueSelect = fieldCard ? fieldCard.querySelector('[data-schema-field="showWhenValue"]') : null;
+  if(!sectionEl || !valueSelect) return;
+  const triggerId = triggerSelect.value;
+  let conditionValues = [];
+  if(triggerId){
+    const cards = Array.from(sectionEl.querySelectorAll(':scope > .schema-field'));
+    const match = cards.find(function(card){
+      const idEl = card.querySelector('[data-schema-field="id"]');
+      return idEl && idEl.value === triggerId;
+    });
+    if(match){
+      const optsEl = match.querySelector('[data-schema-field="options"]');
+      conditionValues = optsEl ? optsEl.value.split('\n').map(function(s){ return s.trim(); }).filter(Boolean) : [];
+    }
+  }
+  const prev = valueSelect.value;
+  valueSelect.disabled = !triggerId;
+  valueSelect.innerHTML = '<option value="">— выберите ответ —</option>' +
+    conditionValues.map(function(o){
+      return '<option value="' + escapeHtml(o) + '"' + (prev === o ? ' selected' : '') + '>' + escapeHtml(o) + '</option>';
+    }).join('');
+}
+
 const schemaEditor = document.getElementById('schemaEditor');
 if(schemaEditor){
   schemaEditor.addEventListener('change', function(event){
-    const select = event.target.closest('[data-schema-field="type"]');
-    if(!select) return;
-    const field = select.closest('.schema-field');
-    const optionsBox = field ? field.querySelector('.schema-options-box') : null;
-    if(optionsBox){
-      optionsBox.style.display = (select.value === 'radio' || select.value === 'checkbox') ? '' : 'none';
+    const typeSelect = event.target.closest('[data-schema-field="type"]');
+    if(typeSelect){
+      const field = typeSelect.closest('.schema-field');
+      const optionsBox = field ? field.querySelector('.schema-options-box') : null;
+      if(optionsBox){
+        optionsBox.style.display = (typeSelect.value === 'radio' || typeSelect.value === 'checkbox') ? '' : 'none';
+      }
+      return;
+    }
+    const conditionTrigger = event.target.closest('[data-schema-field="showWhenField"]');
+    if(conditionTrigger){
+      updateConditionValueSelect(conditionTrigger);
     }
   });
 
@@ -1911,6 +1972,8 @@ async function initializeApp(){
   bindFormNavigation();
   showStep(0);
   updateClientLink();
+  const briefForm = document.getElementById('brief-form');
+  if(briefForm) briefForm.classList.add('form-ready');
 }
 
 appReadyPromise = initializeApp();
