@@ -807,6 +807,7 @@
 <script>
 const BRIEF_CONFIG_KEY = 'briefAdminConfig:v2';
 const BRIEF_RESPONSES_KEY = 'briefLocalResponses:v2';
+const BRIEF_DRAFT_KEY = 'briefClientDraft:v1';
 const FORM_SCHEMA_VERSION = 2;
 const DEFAULT_CONFIG = {
   texts: {},
@@ -1368,6 +1369,7 @@ function bindFormNavigation(){
       if(current < totalSteps-1){
         current++;
         showStep(current);
+        saveDraft();
       } else {
         await submitForm();
       }
@@ -1376,7 +1378,7 @@ function bindFormNavigation(){
   if(prevBtn && prevBtn.dataset.bound !== 'true'){
     prevBtn.dataset.bound = 'true';
     prevBtn.addEventListener('click', function(){
-      if(current>0){ current--; showStep(current); }
+      if(current>0){ current--; showStep(current); saveDraft(); }
     });
   }
 }
@@ -1390,6 +1392,7 @@ document.getElementById('brief-form').addEventListener('change', function(event)
     }
     if(field) clearFieldErrors(field);
     updateProgress();
+    saveDraft();
     return;
   }
   if(input.type==='radio'){
@@ -1405,6 +1408,7 @@ document.getElementById('brief-form').addEventListener('change', function(event)
   const field = input.closest('.field');
   if(field) clearFieldErrors(field);
   updateProgress();
+  saveDraft();
 });
 
 document.getElementById('brief-form').addEventListener('input', function(event){
@@ -1417,6 +1421,7 @@ document.getElementById('brief-form').addEventListener('input', function(event){
     updateProgress();
   }
   clearFieldErrors(field);
+  saveDraft();
 });
 
 document.getElementById('brief-form').addEventListener('focusout', function(event){
@@ -1426,6 +1431,7 @@ document.getElementById('brief-form').addEventListener('focusout', function(even
   if(!field) return;
   field.dataset.progressAnswered = String(control.value || '').trim().length > 0 ? 'true' : 'false';
   updateProgress();
+  saveDraft();
 });
 
 function updateConditionalFields(){
@@ -1458,6 +1464,114 @@ function serializeForm(){
     }
   }
   return data;
+}
+
+function getDraftSignature(){
+  const schema = activeConfig.formSchema;
+  if(!schema || !Array.isArray(schema.sections)) return '';
+  return schema.sections.map(function(section){
+    const fields = Array.isArray(section.fields) ? section.fields : [];
+    return [
+      section.id || section.title || '',
+      fields.map(function(field){
+        const showWhen = field.showWhen ? field.showWhen.fieldId + '=' + field.showWhen.value : '';
+        return [field.id, field.type, showWhen].join(':');
+      }).join(',')
+    ].join('|');
+  }).join('||');
+}
+
+function loadDraft(){
+  try{
+    return JSON.parse(localStorage.getItem(BRIEF_DRAFT_KEY) || 'null');
+  }catch(e){
+    return null;
+  }
+}
+
+function saveDraft(){
+  const form = document.getElementById('brief-form');
+  if(!form || !activeConfig.formSchema) return;
+  try{
+    localStorage.setItem(BRIEF_DRAFT_KEY, JSON.stringify({
+      version: 1,
+      schemaVersion: activeConfig.formSchema.version || FORM_SCHEMA_VERSION,
+      signature: getDraftSignature(),
+      current: current,
+      data: serializeForm(),
+      answeredFields: getDraftAnsweredFields()
+    }));
+  }catch(e){}
+}
+
+function clearDraft(){
+  try{
+    localStorage.removeItem(BRIEF_DRAFT_KEY);
+  }catch(e){}
+}
+
+function getControlsByName(form, name){
+  return Array.from(form.elements).filter(function(control){
+    return control.name === name || (name === 'features' && control.name === 'feat') || (name === 'feat' && control.name === 'features');
+  });
+}
+
+function syncOptionStates(){
+  document.querySelectorAll('.opt input').forEach(function(input){
+    const opt = input.closest('.opt');
+    if(opt) opt.classList.toggle('checked', input.checked);
+  });
+}
+
+function getDraftAnsweredFields(){
+  return Array.from(document.querySelectorAll('#brief-form .field[data-field-key]')).filter(function(field){
+    return field.dataset.progressAnswered === 'true';
+  }).map(function(field){
+    return field.dataset.fieldKey;
+  });
+}
+
+function syncProgressAnsweredState(answeredFields){
+  const answered = new Set(answeredFields || []);
+  document.querySelectorAll('#brief-form .field').forEach(function(field){
+    const choices = field.querySelectorAll('input[type="radio"], input[type="checkbox"]');
+    if(choices.length) return;
+    const control = field.querySelector('input:not([type="hidden"]), textarea, select');
+    if(!control) return;
+    if(control.tagName.toLowerCase() === 'select') return;
+    if(answeredFields){
+      field.dataset.progressAnswered = answered.has(field.dataset.fieldKey) ? 'true' : 'false';
+    } else {
+      field.dataset.progressAnswered = String(control.value || '').trim().length > 0 ? 'true' : 'false';
+    }
+  });
+}
+
+function restoreDraft(){
+  const draft = loadDraft();
+  const form = document.getElementById('brief-form');
+  if(!draft || !form) return 0;
+  if(draft.signature !== getDraftSignature()){
+    clearDraft();
+    return 0;
+  }
+  const data = draft.data || {};
+  Object.keys(data).forEach(function(name){
+    const controls = getControlsByName(form, name);
+    const values = Array.isArray(data[name]) ? data[name].map(String) : [String(data[name])];
+    controls.forEach(function(control){
+      if(control.type === 'radio' || control.type === 'checkbox'){
+        control.checked = values.indexOf(control.value) !== -1;
+      } else {
+        control.value = values[0] || '';
+      }
+    });
+  });
+  updateConditionalFields();
+  syncOptionStates();
+  syncProgressAnsweredState(draft.answeredFields);
+  current = Math.min(Math.max(Number(draft.current) || 0, 0), Math.max(totalSteps - 1, 0));
+  return current;
 }
 
 function makeRecord(data){
@@ -1523,6 +1637,7 @@ async function submitForm(){
     setFormError(message);
     return;
   }
+  clearDraft();
   document.getElementById('form-view').style.display='none';
   document.getElementById('success-view').style.display='block';
   const successCard = document.querySelector('#success-view .success');
@@ -2085,8 +2200,9 @@ async function initializeApp(){
   baselineTextConfig = snapshotTextConfig();
   applyTextConfig(activeConfig.texts);
   applyHiddenFields(activeConfig.hiddenFields);
+  const restoredStep = restoreDraft();
   bindFormNavigation();
-  showStep(0);
+  showStep(restoredStep);
   updateClientLink();
   const briefForm = document.getElementById('brief-form');
   if(briefForm) briefForm.classList.add('form-ready');
