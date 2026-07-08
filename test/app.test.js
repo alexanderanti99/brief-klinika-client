@@ -256,6 +256,39 @@ test('submission stores labels for custom form fields', async () => {
   assert.equal(sent[0].payload._fieldLabels.custom_question, 'Important context');
 });
 
+test('submission stores array fields and schema order', async () => {
+  const storage = createFakeStorage({
+    formSchema: {
+      version: 2,
+      sections: [
+        {
+          id: 'custom',
+          eyebrow: 'Custom',
+          title: 'Custom questions',
+          fields: [
+            { id: 'second', type: 'text', label: 'Second field' },
+            { id: 'features', type: 'checkbox', label: 'Feature list', options: ['A', 'B'] },
+            { id: 'first', type: 'text', label: 'First field' }
+          ]
+        }
+      ]
+    }
+  });
+  const app = createApp({
+    env: baseEnv(),
+    storage,
+    mailer: { sendBrief: async () => ({ accepted: ['owner@example.com'] }) }
+  });
+
+  await request(app)
+    .post('/api/submit')
+    .send({ first: 'one', second: 'two', features: ['A', 'B'] })
+    .expect(200);
+
+  assert.deepEqual(storage.state.responses[0].payload.features, ['A', 'B']);
+  assert.deepEqual(storage.state.responses[0].payload._fieldOrder, ['second', 'features', 'first']);
+});
+
 test('admin config writes require authentication', async () => {
   const app = createApp({
     env: baseEnv(),

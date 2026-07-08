@@ -171,26 +171,27 @@ function buildFieldLabels(schema) {
   return labels;
 }
 
+function buildFieldOrder(schema) {
+  return normalizeFormSchema(schema).sections.flatMap((section) => section.fields.map((field) => field.id));
+}
+
 function normalizeSubmission(body) {
   const payload = {};
   Object.entries(body || {}).forEach(([key, value]) => {
-    if (key === 'features' || key === 'feat') return;
+    const fieldKey = key === 'feat' ? 'features' : key;
     if (typeof value === 'string') {
-      payload[key] = value.trim();
+      const trimmed = value.trim();
+      if (trimmed) payload[fieldKey] = trimmed;
+      return;
+    }
+    if (Array.isArray(value)) {
+      const values = value
+        .filter((item) => typeof item === 'string')
+        .map((item) => item.trim())
+        .filter(Boolean);
+      if (values.length) payload[fieldKey] = values;
     }
   });
-
-  const rawFeatures = Array.isArray(body?.features)
-    ? body.features
-    : Array.isArray(body?.feat)
-      ? body.feat
-      : typeof body?.feat === 'string'
-        ? [body.feat]
-        : [];
-  payload.features = rawFeatures
-    .filter((value) => typeof value === 'string')
-    .map((value) => value.trim())
-    .filter(Boolean);
 
   return payload;
 }
@@ -201,7 +202,8 @@ function makeRecord(payload, config) {
     submittedAt: new Date().toISOString(),
     payload: {
       ...payload,
-      _fieldLabels: buildFieldLabels(config.formSchema)
+      _fieldLabels: buildFieldLabels(config.formSchema),
+      _fieldOrder: buildFieldOrder(config.formSchema)
     }
   };
 }

@@ -710,7 +710,7 @@
     <div class="card success">
       <div class="mark">✓</div>
       <h2>Спасибо!</h2>
-      <p>Анкета отправлена. Мы изучим ответы и свяжемся с вами для уточнения деталей.</p>
+      <p>Анкета отправлена. Изучу ответы и свяжусь с вами для уточнения деталей</p>
     </div>
   </div>
 
@@ -1247,7 +1247,7 @@ function refreshOptionValues(){
 }
 
 function updateProgress(){
-  const pct = totalSteps <= 1 ? 100 : Math.round((current/(totalSteps-1))*100);
+  const pct = totalSteps <= 1 ? 100 : Math.round(((current + 1) / totalSteps) * 100);
   document.getElementById('progressFill').style.width = pct+'%';
   document.getElementById('progressLabel').textContent = 'Шаг ' + (current+1) + ' из ' + totalSteps;
 }
@@ -1322,8 +1322,12 @@ function updateConditionalFields(){
     const parts = cond.getAttribute('data-show-if').split('=');
     const name = parts[0];
     const val = parts.slice(1).join('=');
-    const match = document.querySelector('input[name="' + name + '"]:checked');
-    cond.classList.toggle('show', !!match && match.value===val);
+    const matches = Array.from(document.querySelectorAll('input[name="' + name + '"]:checked'));
+    const shouldShow = matches.some(function(input){ return input.value === val; });
+    cond.classList.toggle('show', shouldShow);
+    cond.querySelectorAll('input, textarea, select').forEach(function(control){
+      control.disabled = !shouldShow;
+    });
   });
 }
 
@@ -1943,7 +1947,8 @@ function renderRecord(r){
   const date = new Date(r.submittedAt).toLocaleString('ru-RU');
   const labels = Object.assign({}, featLabels, payload._fieldLabels || {});
   const seen = {};
-  const orderedKeys = Object.keys(labels).concat(Object.keys(payload)).filter(function(key){
+  const schemaOrder = Array.isArray(payload._fieldOrder) ? payload._fieldOrder : [];
+  const orderedKeys = schemaOrder.concat(Object.keys(labels), Object.keys(payload)).filter(function(key){
     if(key.charAt(0) === '_' || seen[key]) return false;
     seen[key] = true;
     return true;

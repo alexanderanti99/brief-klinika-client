@@ -45,7 +45,8 @@ function valueToText(value) {
 function orderedEntries(record) {
   const payload = record.payload || {};
   const labels = labelsFor(record);
-  const keys = [...Object.keys(labels), ...Object.keys(payload)];
+  const fieldOrder = Array.isArray(payload._fieldOrder) ? payload._fieldOrder : [];
+  const keys = [...fieldOrder, ...Object.keys(labels), ...Object.keys(payload)];
   const seen = new Set();
 
   return keys
