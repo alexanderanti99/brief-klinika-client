@@ -118,6 +118,40 @@ test('public config migrates old form schema to current default', async () => {
   assert.equal(response.body.formSchema.sections[0].title, 'Кратко о вас');
 });
 
+test('public config restores site type other field when it is missing', async () => {
+  const app = createApp({
+    env: baseEnv(),
+    storage: createFakeStorage({
+      formSchema: {
+        version: 2,
+        sections: [
+          {
+            id: 'site_data',
+            eyebrow: 'Раздел 2',
+            title: 'Данные для сайта',
+            fields: [
+              {
+                id: 'q4_type',
+                type: 'radio',
+                label: 'Желаемый тип сайта',
+                required: true,
+                options: ['Сайт-визитка', 'Многостраничный сайт', 'Другое']
+              }
+            ]
+          }
+        ]
+      }
+    }),
+    mailer: { sendBrief: async () => ({ accepted: ['owner@example.com'] }) }
+  });
+
+  const response = await request(app).get('/api/config').expect(200);
+  const fields = response.body.formSchema.sections[0].fields;
+
+  assert.equal(fields[1].id, 'q4_type_other');
+  assert.deepEqual(fields[1].showWhen, { fieldId: 'q4_type', value: 'Другое' });
+});
+
 test('admin can save form schema with a new section and field', async () => {
   const storage = createFakeStorage();
   const app = createApp({

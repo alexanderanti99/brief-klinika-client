@@ -97,11 +97,31 @@ function normalizeFormSchema(schema) {
         : []
     }))
     .filter((section) => section.fields.length > 0);
+  ensureSiteTypeOtherField(sections);
 
   return {
     version: defaultFormSchema.version,
     sections: sections.length > 0 ? sections : clone(defaultFormSchema.sections)
   };
+}
+
+function ensureSiteTypeOtherField(sections) {
+  const hasSiteType = sections.some((section) => section.fields.some((field) => field.id === 'q4_type'));
+  const hasOtherField = sections.some((section) => section.fields.some((field) => field.id === 'q4_type_other'));
+  if (!hasSiteType || hasOtherField) return;
+
+  const section = sections.find((item) => item.fields.some((field) => field.id === 'q4_type'));
+  const siteTypeIndex = section.fields.findIndex((field) => field.id === 'q4_type');
+  section.fields.splice(siteTypeIndex + 1, 0, {
+    id: 'q4_type_other',
+    type: 'text',
+    label: 'Уточнение типа сайта',
+    hint: '',
+    placeholder: 'Уточните',
+    required: false,
+    options: [],
+    showWhen: { fieldId: 'q4_type', value: 'Другое' }
+  });
 }
 
 function normalizeConfig(input) {
