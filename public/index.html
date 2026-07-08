@@ -101,6 +101,23 @@
 
   .field{margin-bottom:22px;}
   .field:last-child{margin-bottom:0;}
+  .field.field-error{
+    border:1px solid rgba(179,38,30,.42);
+    border-radius:12px;
+    padding:12px;
+    background:rgba(179,38,30,.045);
+  }
+  .field.field-error input[type=text],
+  .field.field-error textarea{
+    border-color:var(--error);
+    box-shadow:0 0 0 3px rgba(179,38,30,.08);
+  }
+  .field-error-message{
+    margin-top:8px;
+    color:var(--error);
+    font-size:12.5px;
+    font-weight:700;
+  }
   label.q{
     display:block; font-weight:600; font-size:14.5px; margin-bottom:8px;
   }
@@ -1276,10 +1293,9 @@ function isProgressFieldAnswered(field){
   if(choices.length){
     return choices.some(function(input){ return input.checked; });
   }
+  if(field.dataset.progressAnswered === 'true') return true;
   const controls = Array.from(field.querySelectorAll('input:not([type="hidden"]):not(:disabled), textarea:not(:disabled), select:not(:disabled)'));
-  return controls.some(function(control){
-    return String(control.value || '').trim().length > 0;
-  });
+  return controls.some(function(control){ return control.tagName.toLowerCase() === 'select' && String(control.value || '').trim().length > 0; });
 }
 
 function showStep(i){
@@ -1293,7 +1309,9 @@ function showStep(i){
 function validateStep(i){
   const stepEl = steps[i];
   if(!stepEl) return false;
+  clearFieldErrors(stepEl);
   const required = stepEl.querySelectorAll('[required]');
+  let firstInvalid = null;
   for(const el of required){
     const parentField = el.closest('.field');
     if(parentField && parentField.dataset.hiddenByAdmin === 'true') continue;
@@ -1301,12 +1319,43 @@ function validateStep(i){
     if(el.type==='radio' || el.type==='checkbox'){
       const group = stepEl.querySelectorAll('input[name="' + el.name + '"]');
       const checked = Array.from(group).some(function(r){ return r.checked; });
-      if(!checked){ el.closest('.field').scrollIntoView({behavior:'smooth', block:'center'}); return false; }
+      if(!checked){
+        markFieldError(parentField);
+        if(!firstInvalid) firstInvalid = parentField;
+      }
     } else if(!el.value.trim()){
-      el.focus(); return false;
+      markFieldError(parentField);
+      if(!firstInvalid) firstInvalid = el;
     }
   }
+  if(firstInvalid){
+    firstInvalid.scrollIntoView({behavior:'smooth', block:'center'});
+    if(firstInvalid.focus) firstInvalid.focus();
+    return false;
+  }
   return true;
+}
+
+function clearFieldErrors(root){
+  const fields = [];
+  if(root.classList && root.classList.contains('field-error')) fields.push(root);
+  root.querySelectorAll('.field-error').forEach(function(field){ fields.push(field); });
+  fields.forEach(function(field){
+    field.classList.remove('field-error');
+    const message = field.querySelector('.field-error-message');
+    if(message) message.remove();
+  });
+}
+
+function markFieldError(field){
+  if(!field) return;
+  field.classList.add('field-error');
+  if(!field.querySelector('.field-error-message')){
+    const message = document.createElement('div');
+    message.className = 'field-error-message';
+    message.textContent = 'Заполните обязательный вопрос';
+    field.appendChild(message);
+  }
 }
 
 function bindFormNavigation(){
@@ -1335,6 +1384,11 @@ function bindFormNavigation(){
 document.getElementById('brief-form').addEventListener('change', function(event){
   const input = event.target;
   if(!input.matches('.opt input')){
+    const field = input.closest('.field');
+    if(field && String(input.value || '').trim().length > 0){
+      field.dataset.progressAnswered = 'true';
+    }
+    if(field) clearFieldErrors(field);
     updateProgress();
     return;
   }
@@ -1348,10 +1402,29 @@ document.getElementById('brief-form').addEventListener('change', function(event)
     if(opt) opt.classList.toggle('checked', input.checked);
   }
   updateConditionalFields();
+  const field = input.closest('.field');
+  if(field) clearFieldErrors(field);
   updateProgress();
 });
 
-document.getElementById('brief-form').addEventListener('input', function(){
+document.getElementById('brief-form').addEventListener('input', function(event){
+  const control = event.target;
+  if(!control.matches('input[type="text"], textarea')) return;
+  const field = control.closest('.field');
+  if(!field) return;
+  if(String(control.value || '').trim().length === 0){
+    field.dataset.progressAnswered = 'false';
+    updateProgress();
+  }
+  clearFieldErrors(field);
+});
+
+document.getElementById('brief-form').addEventListener('focusout', function(event){
+  const control = event.target;
+  if(!control.matches('input[type="text"], textarea')) return;
+  const field = control.closest('.field');
+  if(!field) return;
+  field.dataset.progressAnswered = String(control.value || '').trim().length > 0 ? 'true' : 'false';
   updateProgress();
 });
 
