@@ -1247,9 +1247,39 @@ function refreshOptionValues(){
 }
 
 function updateProgress(){
-  const pct = totalSteps <= 1 ? 100 : Math.round(((current + 1) / totalSteps) * 100);
+  const pct = Math.round(calculateAnsweredProgress());
   document.getElementById('progressFill').style.width = pct+'%';
   document.getElementById('progressLabel').textContent = 'Шаг ' + (current+1) + ' из ' + totalSteps;
+}
+
+function calculateAnsweredProgress(){
+  if(!steps.length) return 0;
+  const sectionWeight = 100 / steps.length;
+  return steps.reduce(function(total, step){
+    const fields = getProgressFields(step);
+    if(!fields.length) return total + sectionWeight;
+    const answered = fields.filter(isProgressFieldAnswered).length;
+    return total + sectionWeight * (answered / fields.length);
+  }, 0);
+}
+
+function getProgressFields(step){
+  return Array.from(step.querySelectorAll('.field')).filter(function(field){
+    if(field.dataset.hiddenByAdmin === 'true') return false;
+    if(field.classList.contains('conditional') && !field.classList.contains('show')) return false;
+    return !!field.querySelector('input:not([type="hidden"]):not(:disabled), textarea:not(:disabled), select:not(:disabled)');
+  });
+}
+
+function isProgressFieldAnswered(field){
+  const choices = Array.from(field.querySelectorAll('input[type="radio"]:not(:disabled), input[type="checkbox"]:not(:disabled)'));
+  if(choices.length){
+    return choices.some(function(input){ return input.checked; });
+  }
+  const controls = Array.from(field.querySelectorAll('input:not([type="hidden"]):not(:disabled), textarea:not(:disabled), select:not(:disabled)'));
+  return controls.some(function(control){
+    return String(control.value || '').trim().length > 0;
+  });
 }
 
 function showStep(i){
@@ -1304,7 +1334,10 @@ function bindFormNavigation(){
 
 document.getElementById('brief-form').addEventListener('change', function(event){
   const input = event.target;
-  if(!input.matches('.opt input')) return;
+  if(!input.matches('.opt input')){
+    updateProgress();
+    return;
+  }
   if(input.type==='radio'){
     document.querySelectorAll('input[name="' + input.name + '"]').forEach(function(r){
       const opt = r.closest('.opt');
@@ -1315,6 +1348,11 @@ document.getElementById('brief-form').addEventListener('change', function(event)
     if(opt) opt.classList.toggle('checked', input.checked);
   }
   updateConditionalFields();
+  updateProgress();
+});
+
+document.getElementById('brief-form').addEventListener('input', function(){
+  updateProgress();
 });
 
 function updateConditionalFields(){
